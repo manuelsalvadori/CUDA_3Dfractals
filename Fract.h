@@ -1,3 +1,6 @@
+#ifndef FRACT_H_
+#define FRACT_H_
+
 #include <SFML/Graphics.hpp>
 
 class Fract
@@ -8,8 +11,10 @@ class Fract
    std::unique_ptr<sf::Image> generateFractal(const sf::Vector3f &view);
    int getWidth() const;
    int getHeight() const;
-   
+
  private:
    int width;
    int height;
 }
+
+#endif /* FRACT_H_ */
