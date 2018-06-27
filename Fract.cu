@@ -1,4 +1,7 @@
 #include <Fract.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 
 using namespace std;
 
@@ -26,4 +29,10 @@ unique_ptr<sf::Image> Fract::generateFractal(const sf::Vector3f &view)
   // ...
 
   return fract_ptr;
+}
+
+
+__global__ void fractGen()
+{
+  cout << "I am on GPU :D" << endl;
 }
