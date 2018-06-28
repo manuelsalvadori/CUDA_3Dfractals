@@ -1,0 +1,22 @@
+#=======================#
+# 	Gitignore Estremo	#
+#=======================#
+
+# Elimina ogni file che non sia un sorgente o un header che non venga da una libreria
+# esterna, per evitare possibili conflitti sul mac.
+
+# Ignora tutte le cartelle di Visual Studio.
+.vs/
+bin/
+lib/
+x64/
+
+# Ignora tutti gli header che vengono da librerie esterne
+header/*/
+
+# Ignora i file generati da Visual Studio per il progetto
+GPU_project.sln
+GPU_project.vcxproj
+GPU_project.vcxproj.filters
+GPU_project.vcxproj.user
+vc140.pdb
