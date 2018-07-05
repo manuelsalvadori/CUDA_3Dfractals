@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <math.h> 
+#include <cmath>
 #include <cutil_math.h>
 #include <SFML/Graphics/Export.hpp>
 #include <SFML/Graphics/Color.hpp>
@@ -18,8 +19,8 @@
 #include <Pixel.h>
 #include <common.h>
 
-#define WIDTH 1080.0
-#define HEIGHT 1080.0
+#define WIDTH 512.0
+#define HEIGHT 512.0
 #define MAX_STEPS 1000
 #define EPSILON 0.001
 
