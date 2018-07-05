@@ -1,7 +1,5 @@
 #include <Fract.h>
 
-
-
 Fract::Fract(int width, int height) : width(width), height(height) {}
 
 Fract::~Fract() {}
@@ -16,8 +14,7 @@ int Fract::getHeight() const
 	return height;
 }
 
-
-std::unique_ptr<sf::Image> Fract::generateFractal(const sf::Vector3f &view, pixel *imageDevice, pixel *imageHost)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost)
 {
 
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
@@ -26,7 +23,10 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const sf::Vector3f &view, pixe
 	dim3 dimGrid(std::ceil(width / 32), std::ceil(height / 32));
 	dim3 dimBlock(32, 32);
 	cudaError_t error1 = cudaGetLastError();
-	parentKernel << <dimGrid, dimBlock >> > (imageDevice);
+
+	
+	parentKernel << <dimGrid, dimBlock >> > (view, imageDevice);
+
 	// ...
 	// calcolo il frame corrente su GPU con CUDA
 	// ...
@@ -45,29 +45,98 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const sf::Vector3f &view, pixe
 	return fract_ptr;
 }
 
-
-__global__ void parentKernel(pixel* img)
+//bool Fract::raymarch(sf::Vector3f rayOrigin, sf::Vector3f rayDirection) {
+//
+//	float currentDistance = 0.0f;
+//
+//	for (int i = 0; i < MAX_STEPS; ++i) {
+//
+//		float extimatedDistanceClosestObject = sceneDistance(rayOrigin + rayDirection * currentDistance);
+//
+//		if (extimatedDistanceClosestObject < EPSILON) {
+//
+//			// Do something with p
+//			return true;
+//
+//		}
+//		currentDistance += extimatedDistanceClosestObject;
+//	}
+//	return false;
+//}
+//
+//__global__ void drawTest() {
+//	vec3 eye = vec3(0, 0, -1);
+//	vec3 up = vec3(0, 1, 0);
+//	vec3 right = vec3(1, 0, 0);
+//
+//	float u = gl_FragCoord.x * 2.0 / g_resolution.x - 1.0;
+//	float v = gl_FragCoord.y * 2.0 / g_resolution.y - 1.0;
+//	vec3 ro = right * u + up * v;
+//	vec3 rd = normalize(cross(right, up));
+//
+//	vec4 color = vec4(0.0); // Sky color
+//
+//	float t = 0.0;
+//	const int maxSteps = 32;
+//	for (int i = 0; i < maxSteps; ++i)
+//	{
+//		vec3 p = ro + rd * t;
+//		float d = length(p) - 0.5; // Distance to sphere of radius 0.5
+//		if (d < g_rmEpsilon)
+//		{
+//			color = vec4(1.0); // Sphere color
+//			break;
+//		}
+//
+//		t += d;
+//	}
+//
+//	return color;
+//}
+//
+//
+__global__ void parentKernel(const float3 &view1, pixel* img)
 {
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
-	//printf("Sono il padre prima dell'if, %d, e il primo pixel ha valore r  %d\n", x, img[x].r);
 
-	if (idx < WIDTH && idy < HEIGHT) {
-		//printf("Dentro if, %d\n", x);
-		img[x].r = 250;
-		img[x].g = 250;
-		img[x].b = 10;
-	}
+	float3 view = { 0, 0, -1 };
+	float3 up = { 0, 1, 0 };
+	float3 right = { 1, 0, 0 };
 
-	//printf("Sono il padre dopo l'if, %d, e il primo pixel ha valore r  %d\n", x, img[x].r);
+	float u = 2 * (idx / WIDTH) - 1;
+	float v = 2 * (idx / HEIGHT) - 1;
+	float3 rayOrigin = { u, v,0 };
+	float3 rayDirection = normalize(cross(right, up));
+
+	//float distanceTraveled = 0.0;
+	//const int maxSteps = 1000;
+	//for (int i = 0; i < maxSteps; ++i)
+	//{
+	//	float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
+	//	float distanceFromClosestObject = length(iteratedPointPosition) - 0.5; // Distance to sphere of radius 0.5
+	//	if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
+	//	{
+	//		// Sphere color
+	//		img[x].r = 255;
+	//		img[x].g = 0;
+	//		img[x].b = 0;
+	//		break;
+	//	}
+
+	//	distanceTraveled += distanceFromClosestObject;
+	//}
+
+	img[x].r = ((u*255)/2.0)+127;
+	img[x].g = ((u * 255) / 2.0) + 127;
+	img[x].b = ((u * 255) / 2.0) + 127;
 
 	//childKernel << <1, 10 >> > ();
 }
 
 __global__ void childKernel()
 {
-	//printf("Sono il figlio! :)\n");
+	printf("Sono un figlio.\n");
 }
-
