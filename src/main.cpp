@@ -1,12 +1,15 @@
 #include <iostream>
 #include <Fract.h>
+#include <Pixel.h>
 
 int main()
 {
+	int width = WIDTH;
+	int height = HEIGHT;
 	// window creation and setting
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
-	sf::RenderWindow window(sf::VideoMode(800, 600), "3D fractal", sf::Style::Default, settings);
+	sf::RenderWindow window(sf::VideoMode(width, height), "3D fractal", sf::Style::Default, settings);
 	window.setVerticalSyncEnabled(true);
 	sf::Color background(0, 0, 0, 255);
 
@@ -14,14 +17,21 @@ int main()
 	sf::Texture texture;
 	sf::Image fractal;
 	sf::Vector3f view(0.f, 0.f, 0.f);
-	Fract fract(800, 600);
+	Fract fract(width, height);
+
+	pixel* imageHost;
+	CHECK(cudaMallocHost((pixel**)&imageHost,sizeof(pixel)*width*height));
+
+	//// Device memory allocation
+	pixel* imgDevice;
+	CHECK(cudaMalloc((pixel**)&imgDevice, sizeof(pixel)*width*height));
 
 	// loop
 	while (window.isOpen())
 	{
 		window.clear(background);
 
-		texture.loadFromImage(*fract.generateFractal(view));
+		texture.loadFromImage(*fract.generateFractal(view,imgDevice, imageHost));
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 
