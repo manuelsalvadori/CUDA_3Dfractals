@@ -116,9 +116,9 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
-		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
-		float3 r = { 0.2f,0.2f,0.2f };
-		float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
+		float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
+		//float3 r = { 0.2f,0.2f,0.2f };
+		//float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
 		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
 		{
 			// Sphere color
