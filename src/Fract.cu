@@ -24,7 +24,6 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	dim3 dimBlock(32, 32);
 	cudaError_t error1 = cudaGetLastError();
 
-	
 	parentKernel << <dimGrid, dimBlock >> > (view, imageDevice);
 
 	// ...
@@ -102,36 +101,39 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
-	float3 view = { 0, 0, -1 };
+	float3 view = { 0, 0, -10 };
 	float3 up = { 0, 1, 0 };
 	float3 right = { 1, 0, 0 };
 
 	float u = 2 * (idx / WIDTH) - 1;
-	float v = 2 * (idx / HEIGHT) - 1;
-	float3 rayOrigin = { u, v,0 };
-	float3 rayDirection = normalize(cross(right, up));
+	float v = 2 * (idy / HEIGHT) - 1;
+	float3 rayOrigin = { u, v, -10 };
+	float3 rayDirection = { 0,0,1 };
 
-	//float distanceTraveled = 0.0;
-	//const int maxSteps = 1000;
-	//for (int i = 0; i < maxSteps; ++i)
-	//{
-	//	float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
-	//	float distanceFromClosestObject = length(iteratedPointPosition) - 0.5; // Distance to sphere of radius 0.5
-	//	if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
-	//	{
-	//		// Sphere color
-	//		img[x].r = 255;
-	//		img[x].g = 0;
-	//		img[x].b = 0;
-	//		break;
-	//	}
+	float distanceTraveled = 0.0;
+	const int maxSteps = 32;
+	for (int i = 0; i < maxSteps; ++i)
+	{
+		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
+		float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
+		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
+		{
+			// Sphere color
+			img[x].r = (i * 255) / 32;
+			img[x].g = (i * 255) / 32;
+			img[x].b = (i * 255) / 32;
+			break;
+		}
+		else {
+			img[x].r = 0;
+			img[x].g = 0;
+			img[x].b = 0;
+		}
 
-	//	distanceTraveled += distanceFromClosestObject;
-	//}
+		distanceTraveled += distanceFromClosestObject;
+	}
 
-	img[x].r = ((u*255)/2.0)+127;
-	img[x].g = ((u * 255) / 2.0) + 127;
-	img[x].b = ((u * 255) / 2.0) + 127;
+
 
 	//childKernel << <1, 10 >> > ();
 }

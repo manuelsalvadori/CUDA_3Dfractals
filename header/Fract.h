@@ -18,7 +18,7 @@
 #include <Pixel.h>
 #include <common.h>
 
-#define WIDTH 1920.0
+#define WIDTH 1080.0
 #define HEIGHT 1080.0
 #define MAX_STEPS 1000
 #define EPSILON 0.1
