@@ -115,7 +115,10 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	for (int i = 0; i < maxSteps; ++i)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
-		float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
+		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
+		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
+		float3 r = { 0.2f,0.2f,0.2f };
+		float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
 		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
 		{
 			// Sphere color
@@ -124,13 +127,17 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 			img[x].b = (i * 255) / 32;
 			break;
 		}
-		else {
-			img[x].r = 0;
+		else if(idx < WIDTH && idy < HEIGHT) {
+			img[x].r = 255;
 			img[x].g = 0;
 			img[x].b = 0;
 		}
 
 		distanceTraveled += distanceFromClosestObject;
+
+
+		if (isnan(distanceTraveled))
+			distanceTraveled = 0.0f;
 	}
 
 
