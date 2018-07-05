@@ -4,8 +4,8 @@
 
 int main()
 {
-	int height = 600;
-	int width = 800;
+	int width = WIDTH;
+	int height = HEIGHT;
 	// window creation and setting
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
@@ -19,19 +19,19 @@ int main()
 	sf::Vector3f view(0.f, 0.f, 0.f);
 	Fract fract(width, height);
 
-	//pixel* imageHost;
-	//imageHost = (pixel*)malloc(sizeof(pixel)*width*height);
+	pixel* imageHost;
+	CHECK(cudaMallocHost((pixel**)&imageHost,sizeof(pixel)*width*height));
 
 	//// Device memory allocation
-	//pixel* imgDevice;
-	//CHECK(cudaMalloc((pixel**)&imgDevice, sizeof(pixel)*width*height));
+	pixel* imgDevice;
+	CHECK(cudaMalloc((pixel**)&imgDevice, sizeof(pixel)*width*height));
 
 	// loop
 	while (window.isOpen())
 	{
 		window.clear(background);
 
-		texture.loadFromImage(*fract.generateFractal(view/*,imgDevice, imageHost*/));
+		texture.loadFromImage(*fract.generateFractal(view,imgDevice, imageHost));
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 

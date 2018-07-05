@@ -14,13 +14,15 @@
 #include <Pixel.h>
 #include <common.h>
 
+#define WIDTH 1920
+#define HEIGHT 1080
 
 class Fract
 {
  public:
    Fract (int width, int height);
    virtual ~Fract();
-   std::unique_ptr<sf::Image> generateFractal(const sf::Vector3f &view/*, pixel *imageDevice, pixel *imageHost*/);
+   std::unique_ptr<sf::Image> generateFractal(const sf::Vector3f &view, pixel *imageDevice, pixel *imageHost);
    int getWidth() const;
    int getHeight() const;
 
@@ -31,7 +33,7 @@ class Fract
 };
 
 
-__global__ void  parentKernel(/*pixel* img*/);
+__global__ void  parentKernel(pixel* img);
 __global__ void childKernel();
 
 
