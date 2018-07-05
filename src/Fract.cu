@@ -111,7 +111,7 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	float3 rayDirection = { 0,0,1 };
 
 	float distanceTraveled = 0.0;
-	const int maxSteps = 32;
+	const int maxSteps = 256;
 	for (int i = 0; i < maxSteps; ++i)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;

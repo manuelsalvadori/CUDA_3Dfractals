@@ -21,7 +21,7 @@
 #define WIDTH 1080.0
 #define HEIGHT 1080.0
 #define MAX_STEPS 1000
-#define EPSILON 0.1
+#define EPSILON 0.001
 
 class Fract
 {
