@@ -19,10 +19,10 @@
 #include <Pixel.h>
 #include <common.h>
 
-#define WIDTH 512.0
-#define HEIGHT 512.0
-#define MAX_STEPS 1000
-#define EPSILON 0.001
+#define WIDTH 600.0
+#define HEIGHT 600.0
+#define MAX_STEPS 32
+#define EPSILON 0.01
 
 class Fract
 {
@@ -46,7 +46,10 @@ private:
 //__constant__ sf::Vector3f* rightDevice;
 
 // Kernel functions
-__global__ void parentKernel(const float3 &view, pixel* img);
+__global__ void distanceField(const float3 &view, pixel* img, float t);
 __global__ void childKernel();
+__device__ float sphere(float3, float);
+
+__device__ float cube(float3 ro, float3 b);
 
 #endif /* FRACT_H_ */

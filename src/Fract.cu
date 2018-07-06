@@ -1,4 +1,6 @@
 #include <Fract.h>
+#include <Shapes.h>
+#include <ctime>
 
 Fract::Fract(int width, int height) : width(width), height(height) {}
 
@@ -22,21 +24,17 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 
 	dim3 dimGrid(std::ceil(width / 32), std::ceil(height / 32));
 	dim3 dimBlock(32, 32);
-	cudaError_t error1 = cudaGetLastError();
 
-	parentKernel << <dimGrid, dimBlock >> > (view, imageDevice);
-
-	// ...
-	// calcolo il frame corrente su GPU con CUDA
-	// ...
-
-	cudaError_t error2 = cudaGetLastError();   // add this line, and check the error code
-								  // check error code here
+	float t = clock();
+	printf("urrent time: %f\n", t);
+	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t);
 
 	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
 
-	for (int i = 0; i < width; i++) {
-		for (int j = 0; j < height; j++) {
+	for (int i = 0; i < width; i++)
+	{
+		for (int j = 0; j < height; j++) 
+		{
 			fract_ptr->setPixel(i, j, sf::Color(imageHost[width * j + i].r, imageHost[width * j + i].g, imageHost[width * j + i].b));
 		}
 	}
@@ -94,7 +92,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 //}
 //
 //
-__global__ void parentKernel(const float3 &view1, pixel* img)
+__global__ void distanceField(const float3 &view1, pixel* img, float t)
 {
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -111,14 +109,19 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	float3 rayDirection = { 0,0,1 };
 
 	float distanceTraveled = 0.0;
-	const int maxSteps = 256;
+	const int maxSteps = MAX_STEPS;
 	for (int i = 0; i < maxSteps; ++i)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
-		float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
+		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
 		//float3 r = { 0.2f,0.2f,0.2f };
 		//float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
+
+		//float distanceFromClosestObject = sphere(iteratedPointPosition, 0.7f);
+
+		float distanceFromClosestObject = cube(rotY(iteratedPointPosition, t), float3{ 0.2f,0.2f,0.2f });
+
 		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
 		{
 			// Sphere color
@@ -127,7 +130,7 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 			img[x].b = (i * 255) / 32;
 			break;
 		}
-		else if(idx < WIDTH && idy < HEIGHT) {
+		else if (idx < WIDTH && idy < HEIGHT) {
 			img[x].r = 255;
 			img[x].g = 0;
 			img[x].b = 0;
@@ -135,14 +138,9 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 
 		distanceTraveled += distanceFromClosestObject;
 
-
 		if (isnan(distanceTraveled))
 			distanceTraveled = 0.0f;
 	}
-
-
-
-	//childKernel << <1, 10 >> > ();
 }
 
 __global__ void childKernel()
