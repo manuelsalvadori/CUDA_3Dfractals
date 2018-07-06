@@ -1,11 +1,10 @@
-#include <iostream>
 #include <Fract.h>
-#include <Pixel.h>
 
 int main()
 {
 	int width = WIDTH;
 	int height = HEIGHT;
+
 	// window creation and setting
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
@@ -16,22 +15,29 @@ int main()
 	sf::Sprite sprite;
 	sf::Texture texture;
 	sf::Image fractal;
-	sf::Vector3f view(0.f, 0.f, 0.f);
+	float3 view = { 0.f, 0.f, -1.f };
 	Fract fract(width, height);
 
+	// Host memory allocation
 	pixel* imageHost;
-	CHECK(cudaMallocHost((pixel**)&imageHost,sizeof(pixel)*width*height));
+	CHECK(cudaMallocHost((pixel**)&imageHost, sizeof(pixel)*width*height));
 
-	//// Device memory allocation
+	// Device memory allocation
 	pixel* imgDevice;
 	CHECK(cudaMalloc((pixel**)&imgDevice, sizeof(pixel)*width*height));
+
+	//// Costant memory allocation
+	//sf::Vector3f upH(0, 1, 0);
+	//sf::Vector3f rightH(1, 0, 0);
+	//CHECK(cudaMemcpyToSymbol(upDevice, &upH, sizeof(upH), 0, cudaMemcpyHostToDevice));
+	//CHECK(cudaMemcpyToSymbol(rightDevice, &rightH, sizeof(rightH), 0, cudaMemcpyHostToDevice));
 
 	// loop
 	while (window.isOpen())
 	{
 		window.clear(background);
 
-		texture.loadFromImage(*fract.generateFractal(view,imgDevice, imageHost));
+		texture.loadFromImage(*fract.generateFractal(view, imgDevice, imageHost));
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 
