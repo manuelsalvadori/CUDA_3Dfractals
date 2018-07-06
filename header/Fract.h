@@ -46,7 +46,8 @@ private:
 //__constant__ sf::Vector3f* rightDevice;
 
 // Kernel functions
-__global__ void parentKernel(const float3 &view, pixel* img);
-__global__ void childKernel();
+__global__ void pixelCalculationKernel(const float3 &view, pixel* img);
+__global__ void distanceFieldKernel(float3 rayOrigin, float3 rayDirection, int idx, int idy, int x);
+__global__ void test(pixel *);
 
 #endif /* FRACT_H_ */

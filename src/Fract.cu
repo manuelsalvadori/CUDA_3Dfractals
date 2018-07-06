@@ -20,11 +20,11 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
 	fract_ptr->create(width, height, sf::Color::White);
 
-	dim3 dimGrid(std::ceil(width / 32), std::ceil(height / 32));
+	dim3 dimGrid(std::ceil(width / 32.0f), std::ceil(height / 32.0f));
 	dim3 dimBlock(32, 32);
 	cudaError_t error1 = cudaGetLastError();
 
-	parentKernel << <dimGrid, dimBlock >> > (view, imageDevice);
+	pixelCalculationKernel << <dimGrid, dimBlock >> > (view, imageDevice);
 
 	// ...
 	// calcolo il frame corrente su GPU con CUDA
@@ -94,7 +94,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 //}
 //
 //
-__global__ void parentKernel(const float3 &view1, pixel* img)
+__global__ void pixelCalculationKernel(const float3 &view1, pixel* img)
 {
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -109,43 +109,47 @@ __global__ void parentKernel(const float3 &view1, pixel* img)
 	float v = 2 * (idy / HEIGHT) - 1;
 	float3 rayOrigin = { u, v, -10 };
 	float3 rayDirection = { 0,0,1 };
+	img[x].r = 250;
+	//distanceFieldKernel <<<1, 1>>> (rayOrigin, rayDirection, idx, idy, x);
+	test << <1, 1 >> > (img);
+	img[x].r = 100;
+}
+
+__global__ void test(pixel* img)
+{
+	
+}
+
+__global__ void distanceFieldKernel(float3 rayOrigin, float3 rayDirection, int idx, int idy, int x)
+{
 
 	float distanceTraveled = 0.0;
 	const int maxSteps = 256;
 	for (int i = 0; i < maxSteps; ++i)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
-		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
-		float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
+		float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
+		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
 		//float3 r = { 0.2f,0.2f,0.2f };
 		//float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
-		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
-		{
-			// Sphere color
-			img[x].r = (i * 255) / 32;
-			img[x].g = (i * 255) / 32;
-			img[x].b = (i * 255) / 32;
-			break;
-		}
-		else if(idx < WIDTH && idy < HEIGHT) {
-			img[x].r = 255;
-			img[x].g = 0;
-			img[x].b = 0;
-		}
+		//if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
+		//{
+		//	// Sphere color
+		//	img[x].r = (i * 255) / 32;
+		//	img[x].g = (i * 255) / 32;
+		//	img[x].b = (i * 255) / 32;
+		//	break;
+		//}
+		///*else*/ if (idx < WIDTH && idy < HEIGHT) {
+		//	img[x].r = 255;
+		//	img[x].g = 0;
+		//	img[x].b = 0;
+		//}
 
-		distanceTraveled += distanceFromClosestObject;
+		//distanceTraveled += distanceFromClosestObject;
 
 
 		if (isnan(distanceTraveled))
 			distanceTraveled = 0.0f;
 	}
-
-
-
-	//childKernel << <1, 10 >> > ();
-}
-
-__global__ void childKernel()
-{
-	printf("Sono un figlio.\n");
 }
