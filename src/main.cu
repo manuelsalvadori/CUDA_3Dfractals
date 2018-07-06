@@ -32,6 +32,10 @@ int main()
 	//CHECK(cudaMemcpyToSymbol(upDevice, &upH, sizeof(upH), 0, cudaMemcpyHostToDevice));
 	//CHECK(cudaMemcpyToSymbol(rightDevice, &rightH, sizeof(rightH), 0, cudaMemcpyHostToDevice));
 
+	cudaDeviceProp devProp;
+	cudaGetDeviceProperties(&devProp, 0);
+	printf("Timeout attivato: %d.\n", devProp.kernelExecTimeoutEnabled);
+
 	// loop
 	while (window.isOpen())
 	{

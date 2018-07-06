@@ -22,7 +22,7 @@
 #define WIDTH 1024.0
 #define HEIGHT 1024.0
 #define MAX_STEPS 32
-#define EPSILON 0.01
+#define EPSILON 0.05
 
 class Fract
 {
@@ -48,8 +48,8 @@ private:
 // Kernel functions
 __global__ void distanceField(const float3 &view, pixel* img, float t);
 __global__ void childKernel();
-__device__ float sphere(float3, float);
+__device__ float sphereSolid(float3, float);
 
-__device__ float cube(float3 ro, float3 b);
+__device__ float cubeHollow(float3 ro, float3 b);
 
 #endif /* FRACT_H_ */
