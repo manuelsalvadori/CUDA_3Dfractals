@@ -26,7 +26,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	dim3 dimBlock(32, 32);
 
 	float t = clock();
-	printf("urrent time: %f\n", t);
+	//printf("urrent time: %f\n", t);
 	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t);
 
 	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
@@ -116,11 +116,12 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
 		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
 		//float3 r = { 0.2f,0.2f,0.2f };
-		//float distanceFromClosestObject = (length(iteratedPointPosition / r) - 1.0) * min(min(r.x, r.y), r.z);
+		//float distanceFromClosestObject = (length(rotY(iteratedPointPosition, t) / r) - 1.0) * min(min(r.x, r.y), r.z);
 
-		//float distanceFromClosestObject = sphere(iteratedPointPosition, 0.7f);
+		float d1 = sphere(iteratedPointPosition, 0.8f);
+		float d2 = cube(rotY(iteratedPointPosition, t), float3{ 0.5f,0.6f,0.7f });
 
-		float distanceFromClosestObject = cube(rotY(iteratedPointPosition, t), float3{ 0.2f,0.2f,0.2f });
+		float distanceFromClosestObject = shapeU(d1,d2);
 
 		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
 		{
