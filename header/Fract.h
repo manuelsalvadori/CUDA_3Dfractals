@@ -4,8 +4,13 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include "device_launch_parameters.h"
+#include "cublas_v2.h"
 
+#include <iostream>
 #include <memory>
+#include <math.h> 
+#include <cmath>
+#include <cutil_math.h>
 #include <SFML/Graphics/Export.hpp>
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
@@ -14,27 +19,37 @@
 #include <Pixel.h>
 #include <common.h>
 
-#define WIDTH 1920
-#define HEIGHT 1080
+#define WIDTH 1024.0
+#define HEIGHT 1024.0
+#define MAX_STEPS 32
+#define EPSILON 0.01
 
 class Fract
 {
- public:
-   Fract (int width, int height);
-   virtual ~Fract();
-   std::unique_ptr<sf::Image> generateFractal(const sf::Vector3f &view, pixel *imageDevice, pixel *imageHost);
-   int getWidth() const;
-   int getHeight() const;
+public:
+	Fract(int width, int height);
+	virtual ~Fract();
+	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost);
+	int getWidth() const;
+	int getHeight() const;
 
- private:
-   int width;
-   int height;
+private:
+	int width;
+	int height;
+	bool raymarch(sf::Vector3f rayOrigin, sf::Vector3f rayDirection);
+	
 
 };
 
+////Global memory
+//__constant__ sf::Vector3f* upDevice;
+//__constant__ sf::Vector3f* rightDevice;
 
-__global__ void  parentKernel(pixel* img);
+// Kernel functions
+__global__ void distanceField(const float3 &view, pixel* img, float t);
 __global__ void childKernel();
+__device__ float sphere(float3, float);
 
+__device__ float cube(float3 ro, float3 b);
 
 #endif /* FRACT_H_ */
