@@ -1,6 +1,7 @@
 #include <Fract.h>
 #include <Shapes.h>
 #include <ctime>
+#include <sdf_util.hpp>
 
 Fract::Fract(int width, int height) : width(width), height(height) {}
 
@@ -16,7 +17,7 @@ int Fract::getHeight() const
 	return height;
 }
 
-std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon)
 {
 
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
@@ -26,14 +27,14 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	dim3 dimBlock(32, 32);
 
 	float t = clock();
-	//printf("urrent time: %f\n", t);
-	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t);
+	printf("Current time: %f\n", t);
+	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t,epsilon);
 
 	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
 
 	for (int i = 0; i < width; i++)
 	{
-		for (int j = 0; j < height; j++) 
+		for (int j = 0; j < height; j++)
 		{
 			fract_ptr->setPixel(i, j, sf::Color(imageHost[width * j + i].r, imageHost[width * j + i].g, imageHost[width * j + i].b));
 		}
@@ -92,7 +93,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 //}
 //
 //
-__global__ void distanceField(const float3 &view1, pixel* img, float t)
+__global__ void distanceField(const float3 &view1, pixel* img, float t, float epsilon)
 {
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -103,10 +104,17 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 	float3 up = { 0, 1, 0 };
 	float3 right = { 1, 0, 0 };
 
-	float u = 2 * (idx / WIDTH) - 1;
-	float v = 2 * (idy / HEIGHT) - 1;
-	float3 rayOrigin = { u, v, -10 };
+	float u = 5 * (idx / WIDTH) - 2.5f;
+	float v = 5 * (idy / HEIGHT) - 2.5f;
+	float3 rayOrigin = { u, v, view.z };
 	float3 rayDirection = { 0,0,1 };
+
+	// Background color
+	if (idx < WIDTH && idy < HEIGHT) {
+		img[x].r = 255;
+		img[x].g = 0;
+		img[x].b = 0;
+	}
 
 	float distanceTraveled = 0.0;
 	const int maxSteps = MAX_STEPS;
@@ -118,23 +126,24 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 		//float3 r = { 0.2f,0.2f,0.2f };
 		//float distanceFromClosestObject = (length(rotY(iteratedPointPosition, t) / r) - 1.0) * min(min(r.x, r.y), r.z);
 
-		float d1 = sphere(iteratedPointPosition, 0.8f);
-		float d2 = cube(rotY(iteratedPointPosition, t), float3{ 0.5f,0.6f,0.7f });
+		//float d1 = sphereSolid(iteratedPointPosition, 0.5f);
+		/*float d1 = crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
+		float d2 = cubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });*/
 
-		float distanceFromClosestObject = shapeU(d1,d2);
+		//float distanceFromClosestObject = sierpinskiPyramidNotOpt(iteratedPointPosition,10,1.1f);
+		float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
 
-		if (distanceFromClosestObject < EPSILON && idx < WIDTH && idy < HEIGHT)
+		// Far plane 
+		if (distanceTraveled > 15.0f)
+			break;
+
+		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < epsilon)
 		{
 			// Sphere color
-			img[x].r = (i * 255) / 32;
-			img[x].g = (i * 255) / 32;
-			img[x].b = (i * 255) / 32;
-			break;
-		}
-		else if (idx < WIDTH && idy < HEIGHT) {
 			img[x].r = 255;
-			img[x].g = 0;
-			img[x].b = 0;
+			img[x].g = (i * 255) / MAX_STEPS;
+			img[x].b = 255;
+			break;
 		}
 
 		distanceTraveled += distanceFromClosestObject;

@@ -17,6 +17,7 @@ int main()
 	sf::Image fractal;
 	float3 view = { 0.f, 0.f, -1.f };
 	Fract fract(width, height);
+	float epsilon = 1e-5;
 
 	// Host memory allocation
 	pixel* imageHost;
@@ -37,7 +38,7 @@ int main()
 	{
 		window.clear(background);
 
-		texture.loadFromImage(*fract.generateFractal(view, imgDevice, imageHost));
+		texture.loadFromImage(*fract.generateFractal(view, imgDevice, imageHost, epsilon));
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 
@@ -46,9 +47,17 @@ int main()
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down)
+			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
 			{
-				// move camera
+				//Increment epsilon
+				epsilon += 0.001f;
+				printf("Epsilon attuale: %f\n", epsilon);
+			}
+			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Left)
+			{
+				//Decrement epsilon
+				epsilon -= 0.001f;
+				printf("Epsilon attuale: %f\n", epsilon);
 			}
 
 			if (event.type == sf::Event::Closed)
