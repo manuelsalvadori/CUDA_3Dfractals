@@ -125,22 +125,22 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 		//float3 r = { 0.2f,0.2f,0.2f };
 		//float distanceFromClosestObject = (length(rotY(iteratedPointPosition, t) / r) - 1.0) * min(min(r.x, r.y), r.z);
 
-		float d1 = sphereSolid(iteratedPointPosition, 0.5f);
-		float d2 = crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
-		//float d2 = cube(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
+		//float d1 = sphereSolid(iteratedPointPosition, 0.5f);
+		/*float d1 = crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
+		float d2 = cubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });*/
 
-		float distanceFromClosestObject = shapeSubtraction(d2, d1);
+		float distanceFromClosestObject = sierpinskiPyramidNotOpt(rotY(iteratedPointPosition, t),10,1.1f);
 
 		// Far plane 
-		if (distanceTraveled > 3.0f)
+		if (distanceTraveled > 10.0f)
 			break;
 
 		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < EPSILON)
 		{
 			// Sphere color
-			img[x].r = (i * 255) / 32;
-			img[x].g = (i * 255) / 32;
-			img[x].b = (i * 255) / 32;
+			img[x].r = 255;
+			img[x].g = (i * 255) / MAX_STEPS;
+			img[x].b = 255;
 			break;
 		}
 
