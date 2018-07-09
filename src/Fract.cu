@@ -1,6 +1,7 @@
 #include <Fract.h>
 #include <Shapes.h>
 #include <ctime>
+#include <sdf_util.hpp>
 
 Fract::Fract(int width, int height) : width(width), height(height) {}
 
@@ -16,7 +17,7 @@ int Fract::getHeight() const
 	return height;
 }
 
-std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon)
 {
 
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
@@ -26,8 +27,8 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	dim3 dimBlock(32, 32);
 
 	float t = clock();
-	printf("urrent time: %f\n", t);
-	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t);
+	printf("Current time: %f\n", t);
+	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t,epsilon);
 
 	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
 
@@ -92,7 +93,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 //}
 //
 //
-__global__ void distanceField(const float3 &view1, pixel* img, float t)
+__global__ void distanceField(const float3 &view1, pixel* img, float t, float epsilon)
 {
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -103,8 +104,8 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 	float3 up = { 0, 1, 0 };
 	float3 right = { 1, 0, 0 };
 
-	float u = 2 * (idx / WIDTH) - 1;
-	float v = 2 * (idy / HEIGHT) - 1;
+	float u = 10 * (idx / WIDTH) - 5;
+	float v = 10 * (idy / HEIGHT) - 5;
 	float3 rayOrigin = { u, v, view.z };
 	float3 rayDirection = { 0,0,1 };
 
@@ -129,13 +130,14 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t)
 		/*float d1 = crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
 		float d2 = cubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });*/
 
-		float distanceFromClosestObject = sierpinskiPyramidNotOpt(rotY(iteratedPointPosition, t),10,1.1f);
+		//float distanceFromClosestObject = sierpinskiPyramidNotOpt(iteratedPointPosition,10,1.1f);
+		float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
 
 		// Far plane 
-		if (distanceTraveled > 10.0f)
+		if (distanceTraveled > 15.0f)
 			break;
 
-		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < EPSILON)
+		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < epsilon)
 		{
 			// Sphere color
 			img[x].r = 255;

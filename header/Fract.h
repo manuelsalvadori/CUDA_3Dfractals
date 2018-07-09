@@ -22,14 +22,14 @@
 #define WIDTH 1024.0
 #define HEIGHT 1024.0
 #define MAX_STEPS 32
-#define EPSILON 0.1
+#define EPSILON 0.05
 
 class Fract
 {
 public:
 	Fract(int width, int height);
 	virtual ~Fract();
-	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost);
+	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon);
 	int getWidth() const;
 	int getHeight() const;
 
@@ -46,7 +46,7 @@ private:
 //__constant__ sf::Vector3f* rightDevice;
 
 // Kernel functions
-__global__ void distanceField(const float3 &view, pixel* img, float t);
+__global__ void distanceField(const float3 &view, pixel* img, float t, float epsilon);
 __global__ void childKernel();
 __device__ float sphereSolid(float3, float);
 
