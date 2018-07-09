@@ -47,6 +47,7 @@ private:
 
 // Kernel functions
 __global__ void distanceField(const float3 &view, pixel* img, float t, float epsilon);
+__device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t, float epsilon);
 __global__ void childKernel();
 __device__ float sphereSolid(float3, float);
 
