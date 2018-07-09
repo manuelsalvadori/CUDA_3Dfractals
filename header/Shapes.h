@@ -121,7 +121,7 @@ __device__ float sierpinskiPyramidNotOpt(float3 z, int iteration = 3, float scal
 		n++;
 	}
 
-	return length(z) * pow(scale, float(-n));
+	return length(z) * pow(scale, (float)-n);
 }
 
 __device__ float sierpinskiPyramidOpt(float3 z, int iteration = 3, float scale = 1.0f, float offset = 0.0f)
@@ -146,12 +146,12 @@ __device__ float sierpinskiPyramidOpt(float3 z, int iteration = 3, float scale =
 		z = z * scale - offset * (scale - 1.0);
 		n++;
 	}
-	return (length(z)) * pow(scale, -float(n));
+	return (length(z)) * pow(scale, (float)(-1*n));
 }
 
 __device__ float sierpinskiPyramidTest(float3 z, int iteration = 3, float scale = 1.0f, float offset = 0.0f)
 {
-	float3 c = float3{ 0.0f,0.0f ,0.0f };
+	/*float3 c = float3{ 0.0f,0.0f ,0.0f };
 	int n = 0;
 	float dist = 0;
 	float d = 0;
@@ -166,7 +166,7 @@ __device__ float sierpinskiPyramidTest(float3 z, int iteration = 3, float scale 
 		n++;
 	}
 
-	return length(z) * pow(scale, float(-n));
+	return length(z) * pow(scale, (float)-n);*/
 
 }
 #endif /*SHAPES_H_*/
