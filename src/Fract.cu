@@ -28,7 +28,18 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 
 	float t = clock();
 	printf("Current time: %f\n", t);
-	distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t,epsilon);
+	//distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t,epsilon);
+
+	cudaStream_t stream[6];
+	for (int i=0; i < 6; i++) {
+		CHECK(cudaStreamCreate(&stream[i]));
+		childKernel << <1, 1, 0, stream[i] >> > ();
+	}
+	CHECK(cudaDeviceSynchronize());
+
+	for (int i=0; i < 6; i++) {
+		CHECK(cudaStreamDestroy(stream[i]));
+	}
 
 	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
 
@@ -109,6 +120,11 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t, float ep
 	float3 rayOrigin = { u, v, view.z };
 	float3 rayDirection = { 0,0,1 };
 
+	distanceExtimator(idx, idy, img, x, rayOrigin, rayDirection, t, epsilon);
+}
+
+__device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t, float epsilon)
+{
 	// Background color
 	if (idx < WIDTH && idy < HEIGHT) {
 		img[x].r = 255;
