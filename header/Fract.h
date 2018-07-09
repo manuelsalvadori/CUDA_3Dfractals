@@ -19,9 +19,9 @@
 #include <Pixel.h>
 #include <common.h>
 
-#define WIDTH 1024.0
-#define HEIGHT 1024.0
-#define MAX_STEPS 32
+#define WIDTH 512.0
+#define HEIGHT 512.0
+#define MAX_STEPS 128
 #define EPSILON 0.05
 
 class Fract

@@ -100,12 +100,12 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t, float ep
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
-	float3 view = { 0, 0, -1 };
+	float3 view = { 0, 0, -10 };
 	float3 up = { 0, 1, 0 };
 	float3 right = { 1, 0, 0 };
 
-	float u = 10 * (idx / WIDTH) - 5;
-	float v = 10 * (idy / HEIGHT) - 5;
+	float u = 5 * (idx / WIDTH) - 2.5f;
+	float v = 5 * (idy / HEIGHT) - 2.5f;
 	float3 rayOrigin = { u, v, view.z };
 	float3 rayDirection = { 0,0,1 };
 
