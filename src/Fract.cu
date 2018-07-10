@@ -117,14 +117,18 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t, float ep
 	int idy = (PIXEL_PER_STREAM * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
-	float3 view = { 0, 0, -10 };
-	float3 up = { 0, 1, 0 };
-	float3 right = { 1, 0, 0 };
+	float3 view{ 0, 0, -10 };
+	float3 forward{ 0, 0, 1 };
+	float3 up{ 0, 1, 0 };
+	float3 right{ 1, 0, 0 };
 
 	float u = 5 * (idx / WIDTH) - 2.5f;
 	float v = 5 * (idy / HEIGHT) - 2.5f;
-	float3 rayOrigin = { u, v, view.z };
-	float3 rayDirection = { 0,0,1 };
+
+	float3 point{ u, v,0 };
+
+	float3 rayOrigin = { 0, 0, view.z };
+	float3 rayDirection = normalize(point - rayOrigin);
 
 	distanceExtimator(idx, idy, img, x, rayOrigin, rayDirection, t, epsilon);
 }
@@ -145,9 +149,9 @@ __device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const fl
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		//float distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
-		//float power = abs(cos(t)) * 1;
+		//float power = abs(cos(t)) * 40 + 2;
 		//float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-		float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+		float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 		//float distanceFromClosestObject = mengerBox(rotY(iteratedPointPosition, t), 3);
 		//float distanceFromClosestObject = sdfSphere(rotY(iteratedPointPosition, t), power);
 
