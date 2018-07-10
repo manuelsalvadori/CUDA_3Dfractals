@@ -24,7 +24,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	fract_ptr->create(width, height, sf::Color::White);
 
 	dim3 dimBlock(BLOCK_DIM_X, BLOCK_DIM_Y);
-	dim3 dimGrid(width / (dimBlock.x*sqrt(NUM_STREAMS)), height / (dimBlock.y*sqrt(NUM_STREAMS)));
+	dim3 dimGrid(width / (BLOCK_DIM_X*sqrt(NUM_STREAMS)), height / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)));
 
 	float currentTime = clock();
 	printf("Delta time: %fs\n", ((currentTime - lastFrameStartTime) / 1000));
@@ -35,12 +35,10 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	// Start each kernel on a separate stream
 	int2 streamID{ 0,0 };
 
-	int pixelP = PIXEL_PER_STREAM;
-
 	for (int i = 0; i < NUM_STREAMS; i++) {
-		streamID.y = i % (width / (dimBlock.x*NUM_STREAMS));
-		streamID.x = i / (width / (dimBlock.x*NUM_STREAMS));
-		computeNormals << <dimGrid, dimBlock >> > (view, imageDevice, rotation, epsilon, streamID);
+		streamID.y = i % (width / (BLOCK_DIM_X*NUM_STREAMS));
+		streamID.x = i / (width / (BLOCK_DIM_Y*NUM_STREAMS));
+		distanceField << <dimGrid, dimBlock >> > (view, imageDevice, rotation, epsilon, streamID);
 	}
 	CHECK(cudaDeviceSynchronize());
 
@@ -149,12 +147,8 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		//float distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
-		//float power = abs(cos(t)) * 40 + 2;
-		//float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-		//float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-		distanceFromClosestObject = mengerBox(rotY(iteratedPointPosition, t), 3);
-		//float distanceFromClosestObject = sdfSphere(rotY(iteratedPointPosition, t), 0.5f);
+		distanceFromClosestObject = DE(iteratedPointPosition, t);
+
 
 		// Far plane 
 		if (distanceTraveled > 15.0f)
@@ -176,6 +170,16 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	}
 
 	return distanceFromClosestObject;
+}
+
+__device__ float DE(const float3 &iteratedPointPosition, float t)
+{
+	//float distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
+	//float power = abs(cos(t)) * 40 + 2;
+	//float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
+	//float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	return mengerBox(rotY(iteratedPointPosition, t), 3);
+	//float distanceFromClosestObject = sdfSphere(rotY(iteratedPointPosition, t), 0.5f);
 }
 
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, float epsilon, int2 streamID)
