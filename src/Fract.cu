@@ -26,9 +26,11 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	dim3 dimBlock(BLOCK_DIM_X, BLOCK_DIM_Y);
 	dim3 dimGrid(width / (dimBlock.x*sqrt(NUM_STREAMS)), height / (dimBlock.y*sqrt(NUM_STREAMS)));
 
+	float currentTime = clock();
+	printf("Delta time: %fs\n", ((currentTime - lastFrameStartTime) / 1000));
+	lastFrameStartTime = currentTime;
+	rotation += 0.174533;
 
-	float t = clock();
-	printf("Current time: %f\n", t);
 
 	// Start each kernel on a separate stream
 	int2 streamID{ 0,0 };
@@ -38,7 +40,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	for (int i = 0; i < NUM_STREAMS; i++) {
 		streamID.y = i % (width / (dimBlock.x*NUM_STREAMS));
 		streamID.x = i / (width / (dimBlock.x*NUM_STREAMS));
-		distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t, epsilon, streamID);
+		distanceField << <dimGrid, dimBlock >> > (view, imageDevice, rotation, epsilon, streamID);
 	}
 	CHECK(cudaDeviceSynchronize());
 
@@ -141,17 +143,13 @@ __device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const fl
 	for (int i = 0; i < maxSteps; ++i)
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
-		//float distanceFromClosestObject = length(iteratedPointPosition) - 0.8; // Distance to sphere of radius 0.5
-		//float distanceFromClosestObject = length(fmaxf(fabs(iteratedPointPosition) - float3{ 0.2f,0.2f,0.2f }, float3{ 0.0f ,0.0f,0.0f }));
-		//float3 r = { 0.2f,0.2f,0.2f };
-		//float distanceFromClosestObject = (length(rotY(iteratedPointPosition, t) / r) - 1.0) * min(min(r.x, r.y), r.z);
 
-		//float d1 = sphereSolid(iteratedPointPosition, 0.5f);
-		/*float d1 = crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
-		float d2 = cubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });*/
-
-		//float distanceFromClosestObject = sierpinskiPyramidNotOpt(iteratedPointPosition,10,1.1f);
-		float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
+		//float distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
+		//float power = abs(cos(t)) * 1;
+		//float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
+		float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+		//float distanceFromClosestObject = mengerBox(rotY(iteratedPointPosition, t), 3);
+		//float distanceFromClosestObject = sdfSphere(rotY(iteratedPointPosition, t), power);
 
 		// Far plane 
 		if (distanceTraveled > 15.0f)

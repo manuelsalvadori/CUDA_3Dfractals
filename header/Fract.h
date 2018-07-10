@@ -22,11 +22,11 @@
 #define WIDTH 512.0
 #define HEIGHT 512.0
 #define MAX_STEPS 128
-#define EPSILON 0.05
+#define EPSILON 1e-5
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
-#define NUM_STREAMS 16
-#define PIXEL_PER_STREAM (WIDTH / 4)
+#define NUM_STREAMS 1
+#define PIXEL_PER_STREAM (WIDTH / 1)
 
 class Fract
 {
@@ -40,6 +40,8 @@ public:
 private:
 	int width;
 	int height;
+	int lastFrameStartTime{0};
+	float rotation{ 0 };
 	bool raymarch(sf::Vector3f rayOrigin, sf::Vector3f rayDirection);
 	
 

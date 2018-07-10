@@ -10,6 +10,7 @@
 bin/
 lib/
 x64/
+activity/
 
 # Ignora tutti gli header che vengono da librerie esterne
 header/*/
