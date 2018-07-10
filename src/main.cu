@@ -17,7 +17,7 @@ int main()
 	sf::Image fractal;
 	float3 view = { 0.f, 0.f, -1.f };
 	Fract fract(width, height);
-	float epsilon = 1e-5;
+	float epsilon = EPSILON;
 
 	
 	// Host pinned memory allocation

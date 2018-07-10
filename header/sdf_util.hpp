@@ -6,15 +6,16 @@
 
 #include <cuda_runtime.h>
 #include "cutil_math.h"
+#include <math_util.h>
 
 
 // Mod function that doesn't change sign on negative number input, unlike fmod. 
-inline float __host__ __device__ mmod(float x, float y) 
+inline float __host__ __device__ mmod(float x, float y)
 {
 	return x - y * floor(x / y);
 }
 
-inline float3 __host__ __device__ mmod(float3 x, float y) 
+inline float3 __host__ __device__ mmod(float3 x, float y)
 {
 	return make_float3(x.x - y * floor(x.x / y), x.y - y * floor(x.y / y), x.z - y * floor(x.z / y));
 }
@@ -51,13 +52,13 @@ inline float __host__ __device__ sdfPlane(float3 pos, float3 n)
 	return dot(pos, n);
 }
 
-inline float __host__ __device__ sdfBox(float3 pos, float3 dim) 
+inline float __host__ __device__ sdfBox(float3 pos, float3 dim)
 {
 	float3 d = fabs(pos) - dim;
 	return min(max(d.x, max(d.y, d.z)), 0.0f) + length(fmaxf(d, make_float3(0.0f)));
 }
 
-inline float3 __host__ __device__ rotate(float3 pos, float3 axis, float angle) 
+inline float3 __host__ __device__ rotate(float3 pos, float3 axis, float angle)
 {
 	// https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 	float3 c1 = make_float3(
@@ -80,12 +81,12 @@ inline float3 __host__ __device__ rotate(float3 pos, float3 axis, float angle)
 	return p;
 }
 
-inline float3 __host__ __device__ boxFold(float3 pos, float3 dim) 
+inline float3 __host__ __device__ boxFold(float3 pos, float3 dim)
 {
 	return fminf(fmaxf(pos, -dim), dim) * 2.0f - pos;
 }
 
-inline float3 __host__ __device__ sphereFold(float3 pos, float radius, float inner) 
+inline float3 __host__ __device__ sphereFold(float3 pos, float radius, float inner)
 {
 	float r = length(pos);
 	float3 p = pos;
@@ -94,7 +95,7 @@ inline float3 __host__ __device__ sphereFold(float3 pos, float radius, float inn
 	return p;
 }
 
-inline float3 __host__ __device__ tetraFold(float3 pos) 
+inline float3 __host__ __device__ tetraFold(float3 pos)
 {
 	float3 p = pos;
 	if (p.x - p.y < 0) { float tmp = p.y; p.y = p.x; p.x = tmp; }
@@ -106,24 +107,24 @@ inline float3 __host__ __device__ tetraFold(float3 pos)
 	return p;
 }
 
-inline float3 __host__ __device__ cubicFold(float3 pos) 
+inline float3 __host__ __device__ cubicFold(float3 pos)
 {
 	return fabs(pos);
 }
 
-inline float3 __host__ __device__ octaFold(float3 pos) 
+inline float3 __host__ __device__ octaFold(float3 pos)
 {
 	float3 p = fabs(pos);
-	if (p.x - p.y < 0){ float tmp = p.y; p.y = p.x; p.x = tmp; }
-	if (p.x - p.z < 0){ float tmp = p.z; p.z = p.x; p.x = tmp; }
-	if (p.y - p.z < 0){ float tmp = p.z; p.z = p.y; p.y = tmp; }
+	if (p.x - p.y < 0) { float tmp = p.y; p.y = p.x; p.x = tmp; }
+	if (p.x - p.z < 0) { float tmp = p.z; p.z = p.x; p.x = tmp; }
+	if (p.y - p.z < 0) { float tmp = p.z; p.z = p.y; p.y = tmp; }
 	return p;
 }
 
-inline float3 __host__ __device__ dodecaFold(float3 pos) 
+inline float3 __host__ __device__ dodecaFold(float3 pos)
 {
 	float3 p = fabs(pos);
-	
+
 	float3 n1 = normalize(make_float3(PHI * PHI, 1.0f, -PHI));
 	float3 n2 = normalize(make_float3(-PHI, PHI * PHI, 1.0f));
 	float3 n3 = normalize(make_float3(1.0f, -PHI, PHI * PHI));
@@ -135,11 +136,11 @@ inline float3 __host__ __device__ dodecaFold(float3 pos)
 	if (dot(p, n3) < 0) p = reflect(p, n3);
 	if (dot(p, n4) < 0) p = reflect(p, n4);
 	if (dot(p, n5) < 0) p = reflect(p, n5);
-	
+
 	return p;
 }
 
-inline float3 __host__ __device__ icosaFold(float3 pos) 
+inline float3 __host__ __device__ icosaFold(float3 pos)
 {
 	float3 p = fabs(pos);
 
@@ -171,10 +172,10 @@ inline float __host__ __device__ mandelbulb(float3 pos, int iterations, float ba
 		// convert to polar coordinates
 		float theta = asin(z.z / r);
 		float phi = atan2(z.y, z.x);
-		dr = pow(r, power - 1.0f) * power * dr + 1.0f;
+		dr = (float)fastPrecisePow(r, power - 1.0f) * power * dr + 1.0f;
 
 		// scale and rotate the point
-		float zr = pow(r, power);
+		float zr = (float)fastPrecisePow(r, power);
 		theta = theta * power;
 		phi = phi * power;
 
@@ -225,14 +226,14 @@ inline float __host__ __device__ mengerCross(float3 pos)
 	return sdfUnion(sdfUnion(a, b), c);
 }
 
-inline float __host__ __device__ mengerBox(float3 pos, int iterations, float time = 1.0f) 
+inline float __host__ __device__ mengerBox(float3 pos, int iterations, float time = 1.0f)
 {
 	float3 p = pos;
 	// http://iquilezles.org/www/articles/menger/menger.htm
 	float main = sdfBox(p, make_float3(1.0f));
 	float scale = 1.0f;
 
-	
+
 	for (int i = 0; i < iterations; i++)
 	{
 		float3 a = mmod(p * scale, 2.0f) - 1.0f;
@@ -244,7 +245,7 @@ inline float __host__ __device__ mengerBox(float3 pos, int iterations, float tim
 	return main;
 }
 
-inline float __host__ __device__ mengerScene(float3 pos, int iterations) 
+inline float __host__ __device__ mengerScene(float3 pos, int iterations)
 {
 	float plane = sdfPlane(pos - make_float3(0, -1, 0), make_float3(0, 1, 0));
 	float mb = mengerBox(pos / 1.5f, iterations) * 1.5f;
@@ -253,7 +254,7 @@ inline float __host__ __device__ mengerScene(float3 pos, int iterations)
 	return mb;
 }
 
-inline float __host__ __device__ testFractalScene(float3 pos, float time) 
+inline float __host__ __device__ testFractalScene(float3 pos, float time)
 {
 	//float3 p = icosaFold(pos);
 	//float3 p = rotate(pos, make_float3(0, 1, 0), M_PI * time * 2);
@@ -261,12 +262,12 @@ inline float __host__ __device__ testFractalScene(float3 pos, float time)
 	return sdfUnion(mengerBox(pos, 5, time), sdfPlane(pos - make_float3(0, -1.25f, 0), make_float3(0, 1, 0)));
 }
 
-inline float __host__ __device__ mandelbulbScene(const float3& pos, float time) 
+inline float __host__ __device__ mandelbulbScene(const float3& pos, float time, float power = 4)
 {
 	//float3 p = boxFold(sphereFold(pos, 1.3f, 1.0f), make_float3(0.15f, 0.15f, 0.15f));;
 	//p = octaFold(p);
 	float3 p = dodecaFold(pos);
-	float mb = mandelbulb(p / 2.3f, 8, 4, 1.0f + 9.0f * time) * 2.3f;
+	float mb = mandelbulb(p / 2.3f, 8, power, 1.0f + 9.0f * time) * 2.3f;
 	return mb;
 }
 
@@ -277,7 +278,7 @@ inline float3 __host__ __device__ mandelbulbSceneColor(const float3& pos, float 
 	return mandelbulbColor(pos / 2.3f, 8, 4, 1.0f + 9.0f * time);
 }
 
-inline float __host__ __device__ sphereScene(const float3& pos) 
+inline float __host__ __device__ sphereScene(const float3& pos)
 {
 	float3 mod1 = make_float3(fmodf(pos.x, 2.0) - 1.f, pos.y + 1.5f, fmodf(pos.z, 2.0f) - 1.f);
 	float spheres1 = sdfSphere(mod1, 0.5f);
@@ -296,7 +297,7 @@ inline float __host__ __device__ sphereScene(const float3& pos)
 	return sdfUnion(spheres, plane);
 }
 
-inline float3 __host__ __device__ sphereColor(const float3& pos) 
+inline float3 __host__ __device__ sphereColor(const float3& pos)
 {
 	float3 mod1 = make_float3(fmodf(pos.x, 2.0) - 1.f, pos.y + 1.5f, fmodf(pos.z, 2.0f) - 1.f);
 	float spheres1 = sdfSphere(mod1, 0.5f);
@@ -312,7 +313,7 @@ inline float3 __host__ __device__ sphereColor(const float3& pos)
 
 	float spheres = sdfUnion(sdfUnion(sdfUnion(spheres1, spheres2), spheres3), spheres4);
 	float plane = sdfPlane(pos - make_float3(0, -2.0f, 0), make_float3(0, 1, 0));
-	
+
 	if (plane < spheres) return make_float3(1.0f, 0.3f, 0.1f);
 	return make_float3(0.85f);
 }
