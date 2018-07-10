@@ -19,7 +19,8 @@ int main()
 	Fract fract(width, height);
 	float epsilon = 1e-5;
 
-	// Host memory allocation
+	
+	// Host pinned memory allocation
 	pixel* imageHost;
 	CHECK(cudaMallocHost((pixel**)&imageHost, sizeof(pixel)*width*height));
 
@@ -27,18 +28,20 @@ int main()
 	pixel* imgDevice;
 	CHECK(cudaMalloc((pixel**)&imgDevice, sizeof(pixel)*width*height));
 
-	//// Costant memory allocation
-	//sf::Vector3f upH(0, 1, 0);
-	//sf::Vector3f rightH(1, 0, 0);
-	//CHECK(cudaMemcpyToSymbol(upDevice, &upH, sizeof(upH), 0, cudaMemcpyHostToDevice));
-	//CHECK(cudaMemcpyToSymbol(rightDevice, &rightH, sizeof(rightH), 0, cudaMemcpyHostToDevice));
+	// Create necessary streams
+	cudaStream_t stream[NUM_STREAMS];
+	for (int i = 0; i < NUM_STREAMS; i++) {
+		CHECK(cudaStreamCreate(&stream[i]));
+	}
+
+
 
 	// loop
 	while (window.isOpen())
 	{
 		window.clear(background);
 
-		texture.loadFromImage(*fract.generateFractal(view, imgDevice, imageHost, epsilon));
+		texture.loadFromImage(*fract.generateFractal(view, imgDevice, imageHost, epsilon, stream));
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 
@@ -65,5 +68,13 @@ int main()
 		}
 		window.display();
 	}
+
+	// Cleanup
+	cudaFreeHost(imageHost);
+	cudaFree(imgDevice);
+	for (int i = 0; i < 6; i++) {
+		CHECK(cudaStreamDestroy(stream[i]));
+	}
+
 	return 0;
 }

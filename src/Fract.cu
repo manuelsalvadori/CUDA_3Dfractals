@@ -17,31 +17,35 @@ int Fract::getHeight() const
 	return height;
 }
 
-std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon, cudaStream_t* streams)
 {
 
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
 	fract_ptr->create(width, height, sf::Color::White);
 
-	dim3 dimGrid(std::ceil(width / 32), std::ceil(height / 32));
-	dim3 dimBlock(32, 32);
+	dim3 dimBlock(BLOCK_DIM_X, BLOCK_DIM_Y);
+	dim3 dimGrid(width / (dimBlock.x*sqrt(NUM_STREAMS)), height / (dimBlock.y*sqrt(NUM_STREAMS)));
+
 
 	float t = clock();
 	printf("Current time: %f\n", t);
-	//distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t,epsilon);
 
-	cudaStream_t stream[6];
-	for (int i=0; i < 6; i++) {
-		CHECK(cudaStreamCreate(&stream[i]));
-		childKernel << <1, 1, 0, stream[i] >> > ();
+	// Start each kernel on a separate stream
+	int2 streamID{ 0,0 };
+
+	int pixelP = PIXEL_PER_STREAM;
+
+	for (int i = 0; i < NUM_STREAMS; i++) {
+		streamID.y = i % (width / (dimBlock.x*NUM_STREAMS));
+		streamID.x = i / (width / (dimBlock.x*NUM_STREAMS));
+		distanceField << <dimGrid, dimBlock >> > (view, imageDevice, t, epsilon, streamID);
 	}
 	CHECK(cudaDeviceSynchronize());
 
-	for (int i=0; i < 6; i++) {
-		CHECK(cudaStreamDestroy(stream[i]));
-	}
+	printf("Tutti gli stream sono arrivati alla fine.\n");
 
-	cudaError_t error3 = cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost);
+	// Copy final img of the frame
+	CHECK(cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost));
 
 	for (int i = 0; i < width; i++)
 	{
@@ -104,11 +108,11 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 //}
 //
 //
-__global__ void distanceField(const float3 &view1, pixel* img, float t, float epsilon)
+__global__ void distanceField(const float3 &view1, pixel* img, float t, float epsilon, int2 streamID)
 {
 
-	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	int idy = blockDim.y * blockIdx.y + threadIdx.y;
+	int idx = (PIXEL_PER_STREAM * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
+	int idy = (PIXEL_PER_STREAM * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
 	float3 view = { 0, 0, -10 };
@@ -127,7 +131,7 @@ __device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const fl
 {
 	// Background color
 	if (idx < WIDTH && idy < HEIGHT) {
-		img[x].r = 255;
+		img[x].r = 0;
 		img[x].g = 0;
 		img[x].b = 0;
 	}
@@ -156,9 +160,9 @@ __device__ void distanceExtimator(int idx, int idy, pixel * img, int x, const fl
 		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < epsilon)
 		{
 			// Sphere color
-			img[x].r = 255;
-			img[x].g = (i * 255) / MAX_STEPS;
-			img[x].b = 255;
+			img[x].r = 255 - ((i * 255) / MAX_STEPS);
+			img[x].g = 255 - ((i * 255) / MAX_STEPS);
+			img[x].b = 255 - ((i * 255) / MAX_STEPS);
 			break;
 		}
 
