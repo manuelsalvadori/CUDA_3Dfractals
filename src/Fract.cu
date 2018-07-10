@@ -197,6 +197,13 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 	float3 rayOrigin = { 0, 0, view.z };
 	float3 rayDirection = normalize(point - rayOrigin);
 
+	float3 lightPosition{ 1.0f,1.0f,view.z };
+	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
+
+	float3 halfVector = normalize(lightDirection + rayDirection);
+
+
+
 	// Background color
 	if (idx < WIDTH && idy < HEIGHT) {
 		img[x].r = 0;
@@ -231,16 +238,20 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 			float z1 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) + zDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 			float z2 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) - zDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 
-			float3 color = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
+			float3 normal = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
 
 			//Faceforward
-			if (dot(-rayDirection, color) < 0)
-				color = -color;
+			if (dot(-rayDirection, normal) < 0)
+				normal = -normal;
+
+			float3 color{ 255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS) };
+
+			float weight = abs(dot(normal, halfVector));
 
 			// Sphere color
-			img[x].r = 255 * color.x;
-			img[x].g = 255 * color.y;
-			img[x].b = 255 * color.z;
+			img[x].r = weight * color.x * 255;
+			img[x].g = weight * color.y * 255;
+			img[x].b = weight * color.z * 255;
 			break;
 		}
 
