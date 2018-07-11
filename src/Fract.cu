@@ -1,7 +1,5 @@
 #include <Fract.h>
 #include <Shapes.h>
-#include <ctime>
-#include <sdf_util.hpp>
 
 Fract::Fract(int width, int height) : width(width), height(height) {}
 
@@ -29,11 +27,13 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	// Start each kernel on a separate stream
 	int2 streamID{ 0,0 };
 
-	for (int i = 0; i < NUM_STREAMS; i++) {
-		streamID.x = i / (width / (BLOCK_DIM_Y*NUM_STREAMS));
-		streamID.y = i % (width / (BLOCK_DIM_X*NUM_STREAMS));
-		computeNormals << <dimGrid, dimBlock, 0, streams[i] >> > (view, imageDevice[i], rotation, streamID, peakClk);
-		cudaMemcpyAsync(&imageHost[i], &imageDevice[i], sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[i]);
+	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
+		streamID.x = streamNumber / (width / (BLOCK_DIM_Y*NUM_STREAMS));
+		streamID.y = streamNumber % (width / (BLOCK_DIM_X*NUM_STREAMS));
+		pixel* streamRegionHost = imageHost[streamNumber];
+		pixel* streamRegionDevice = imageDevice[streamNumber];
+		computeNormals << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (view, streamRegionDevice, rotation, streamID, peakClk);
+		cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]);
 	}
 
 	CHECK(cudaDeviceSynchronize());
@@ -44,16 +44,26 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	//CHECK(cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost));
 
 	// Fill the window with img
-	for (int streamNumber = 0; streamNumber < width/*NUM_STREAMS*/; streamNumber++)
+	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++)
 	{
-		for (int arrayIndex = 0; arrayIndex < height/*PIXEL_PER_STREAM_X*PIXEL_PER_STREAM_Y*/; arrayIndex++)
+		pixel* streamRegionHost = imageHost[streamNumber];
+		for (int arrayIndex = 0; arrayIndex < PIXEL_PER_STREAM; arrayIndex++)
 		{
-			int streamX = arrayIndex / PIXEL_PER_STREAM_Y;
-			int streamY = arrayIndex % (int)PIXEL_PER_STREAM_Y;
+			int regionX = arrayIndex / PIXEL_PER_STREAM_X;
+			int regionY = arrayIndex % PIXEL_PER_STREAM_X;
+
+			streamID.x = streamNumber / (width / (BLOCK_DIM_X*NUM_STREAMS));
+			streamID.y = streamNumber % (width / (BLOCK_DIM_X*NUM_STREAMS));
+
+			int imgX = regionX + (streamID.x*PIXEL_PER_STREAM_X);
+			int imgY = regionY + (streamID.y*PIXEL_PER_STREAM_Y);
+
 			//fract_ptr->setPixel(i, j, sf::Color(imageHost[width * j + i].r, imageHost[width * j + i].g, imageHost[width * j + i].b));
-			fract_ptr->setPixel(streamNumber, arrayIndex, sf::Color(255, 0, 0));
+			fract_ptr->setPixel(imgX, imgY, sf::Color(streamRegionHost[arrayIndex].r, streamRegionHost[arrayIndex].g, streamRegionHost[arrayIndex].b));
 		}
 	}
+
+	rotation += 0.174533;
 
 	return fract_ptr;
 }
@@ -137,17 +147,17 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk)
 {
 
-	int idx = (PIXEL_PER_STREAM_X * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
-	int idy = (PIXEL_PER_STREAM_Y * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
-	int x = idy * WIDTH + idx;
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int idy = blockDim.y * blockIdx.y + threadIdx.y;
+	int x = idy * PIXEL_PER_STREAM_X + idx;
 
 	float3 view{ 0, 0, -10 };
 	float3 forward{ 0, 0, 1 };
 	float3 up{ 0, 1, 0 };
 	float3 right{ 1, 0, 0 };
 
-	float u = 5 * (idx / WIDTH) - 2.5f;
-	float v = 5 * (idy / HEIGHT) - 2.5f;
+	float u = 5 * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) - 2.5f;
+	float v = 5 * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - 2.5f;
 
 	float3 point{ u, v,0 };
 
@@ -156,12 +166,12 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 	float3 lightPosition{ 1.0f,1.0f,view.z };
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
-	float3 lightColor = normalize(float3{ 66.0f,1340.f,2440.f });
+	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
 	float3 halfVector = normalize(-lightDirection - rayDirection);
 
 	// Background color
-	if (idx < WIDTH && idy < HEIGHT) {
+	if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y) {
 		img[x].r = 0;
 		img[x].g = 0;
 		img[x].b = 0;
@@ -186,7 +196,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 		if (distanceTraveled > 100.0f)
 			break;
 
-		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < EPSILON)
+		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject < EPSILON)
 		{
 
 			float3 xDir{ 0.5773*EPSILON,0.0f,0.0f };

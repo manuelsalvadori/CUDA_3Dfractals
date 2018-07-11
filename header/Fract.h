@@ -19,6 +19,9 @@
 #include <Pixel.h>
 #include <common.h>
 
+#include <ctime>
+#include <sdf_util.hpp>
+
 #define WIDTH 512.0
 #define HEIGHT 512.0
 #define MAX_STEPS 128
@@ -26,11 +29,11 @@
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
 #define NUM_STREAMS 16
-#define PIXEL_PER_STREAM_X (WIDTH / 4)
-#define PIXEL_PER_STREAM_Y (HEIGHT / 4)
-#define PIXEL_PER_STREAM ((WIDTH / 4)*(HEIGHT / 4))
+#define PIXEL_PER_STREAM_X (int)(WIDTH / 4)
+#define PIXEL_PER_STREAM_Y (int)(HEIGHT / 4)
+#define PIXEL_PER_STREAM (int)((WIDTH / 4)*(HEIGHT / 4))
 
-typedef pixel pixelRegionForStream[(int)PIXEL_PER_STREAM];
+typedef pixel pixelRegionForStream[PIXEL_PER_STREAM];
 
 class Fract
 {
