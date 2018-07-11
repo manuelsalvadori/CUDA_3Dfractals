@@ -26,14 +26,18 @@
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
 #define NUM_STREAMS 16
-#define PIXEL_PER_STREAM (WIDTH / 4)
+#define PIXEL_PER_STREAM_X (WIDTH / 4)
+#define PIXEL_PER_STREAM_Y (HEIGHT / 4)
+#define PIXEL_PER_STREAM ((WIDTH / 4)*(HEIGHT / 4))
+
+typedef pixel pixelRegionForStream[(int)PIXEL_PER_STREAM];
 
 class Fract
 {
 public:
 	Fract(int width, int height);
 	virtual ~Fract();
-	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, cudaStream_t* streams, int peakClk);
+	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk);
 	int getWidth() const;
 	int getHeight() const;
 
