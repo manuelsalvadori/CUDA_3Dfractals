@@ -38,7 +38,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	for (int i = 0; i < NUM_STREAMS; i++) {
 		streamID.y = i % (width / (BLOCK_DIM_X*NUM_STREAMS));
 		streamID.x = i / (width / (BLOCK_DIM_Y*NUM_STREAMS));
-		distanceField << <dimGrid, dimBlock >> > (view, imageDevice, rotation, epsilon, streamID);
+		computeNormals << <dimGrid, dimBlock >> > (view, imageDevice, rotation, epsilon, streamID);
 	}
 	CHECK(cudaDeviceSynchronize());
 
@@ -174,12 +174,12 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 
 __device__ float DE(const float3 &iteratedPointPosition, float t)
 {
-	//float distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
-	//float power = abs(cos(t)) * 40 + 2;
-	//float distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	//float distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
+	//return power = abs(cos(t)) * 40 + 2;
+	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
+	//return distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	return mengerBox(rotY(iteratedPointPosition, t), 3);
-	//float distanceFromClosestObject = sdfSphere(rotY(iteratedPointPosition, t), 0.5f);
+	//return sdfSphere(iteratedPointPosition, 0.5f);
 }
 
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, float epsilon, int2 streamID)
@@ -215,31 +215,30 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+		distanceFromClosestObject = DE(iteratedPointPosition, t);
 
 		// Far plane 
-		if (distanceTraveled > 15.0f)
+		if (distanceTraveled > 100.0f)
 			break;
 
 		if (idx < WIDTH && idy < HEIGHT  && distanceFromClosestObject < epsilon)
 		{
 
-			float3 xDir{ epsilon,0.0f,0.0f };
-			float3 yDir{ 0.0f,epsilon,0.0f };
-			float3 zDir{ 0.0f,0.0f,epsilon };
+			float3 xDir{ 0.5773*epsilon,0.0f,0.0f };
+			float3 yDir{ 0.0f,0.5773*epsilon,0.0f };
+			float3 zDir{ 0.0f,0.0f,0.5773*epsilon };
 
-			float x1 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) + xDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-			float x2 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) - xDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-			float y1 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) + yDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-			float y2 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) - yDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-			float z1 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) + zDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-			float z2 = mandelbulb((rotY(iteratedPointPosition, t) / 2.3f) - zDir, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+			float x1 = DE(iteratedPointPosition + xDir, t);
+			float x2 = DE(iteratedPointPosition - xDir, t);
+			float y1 = DE(iteratedPointPosition + yDir, t);
+			float y2 = DE(iteratedPointPosition - yDir, t);
+			float z1 = DE(iteratedPointPosition + zDir, t);
+			float z2 = DE(iteratedPointPosition - zDir, t);
 
 			float3 color = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
 
-			//Faceforward
-			if (dot(-rayDirection, color) < 0)
-				color = -color;
+			////Faceforward
+			color = -color;
 
 			// Sphere color
 			img[x].r = 255 * color.x;
