@@ -25,25 +25,24 @@
 #define EPSILON 0.00005f
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
-#define NUM_STREAMS 1
-#define PIXEL_PER_STREAM (WIDTH / 1)
+#define NUM_STREAMS 16
+#define PIXEL_PER_STREAM (WIDTH / 4)
 
 class Fract
 {
 public:
 	Fract(int width, int height);
 	virtual ~Fract();
-	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, float epsilon, cudaStream_t* streams);
+	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, cudaStream_t* streams, int peakClk);
 	int getWidth() const;
 	int getHeight() const;
 
 private:
 	int width;
 	int height;
-	int lastFrameStartTime{0};
 	float rotation{ 0 };
 	bool raymarch(sf::Vector3f rayOrigin, sf::Vector3f rayDirection);
-	
+
 
 };
 
@@ -52,10 +51,10 @@ private:
 //__constant__ sf::Vector3f* rightDevice;
 
 // Kernel functions
-__global__ void distanceField(const float3 &view, pixel* img, float t, float epsilon, int2 streamID);
-__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t, float epsilon);
+__global__ void distanceField(const float3 &view, pixel* img, float t, int2 streamID);
+__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t);
 __device__ float DE(const float3 &iteratedPointPosition, float t);
-__global__ void computeNormals(const float3 &view1, pixel* img, float t, float epsilon, int2 streamID);
+__global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk);
 __global__ void childKernel();
 __device__ float sphereSolid(float3, float);
 
