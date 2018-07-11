@@ -17,7 +17,7 @@ int Fract::getHeight() const
 	return height;
 }
 
-std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *imageDevice, pixel *imageHost, cudaStream_t* streams, int peakClk)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
 {
 
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
@@ -30,10 +30,10 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	int2 streamID{ 0,0 };
 
 	for (int i = 0; i < NUM_STREAMS; i++) {
-		streamID.y = i % (width / (BLOCK_DIM_X*NUM_STREAMS));
 		streamID.x = i / (width / (BLOCK_DIM_Y*NUM_STREAMS));
-		computeNormals << <dimGrid, dimBlock, 0, streams[i] >> > (view, imageDevice, rotation, streamID, peakClk);
-		cudaMemcpyAsync(&imageHost[i], &imageDevice[i], sizeof(pixel)*(width / sqrt(NUM_STREAMS))*(height / sqrt(NUM_STREAMS)), cudaMemcpyDeviceToHost, streams[i]);
+		streamID.y = i % (width / (BLOCK_DIM_X*NUM_STREAMS));
+		computeNormals << <dimGrid, dimBlock, 0, streams[i] >> > (view, imageDevice[i], rotation, streamID, peakClk);
+		cudaMemcpyAsync(&imageHost[i], &imageDevice[i], sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[i]);
 	}
 
 	CHECK(cudaDeviceSynchronize());
@@ -44,12 +44,14 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 	//CHECK(cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost));
 
 	// Fill the window with img
-	for (int i = 0; i < width; i++)
+	for (int streamNumber = 0; streamNumber < width/*NUM_STREAMS*/; streamNumber++)
 	{
-		for (int j = 0; j < height; j++)
+		for (int arrayIndex = 0; arrayIndex < height/*PIXEL_PER_STREAM_X*PIXEL_PER_STREAM_Y*/; arrayIndex++)
 		{
+			int streamX = arrayIndex / PIXEL_PER_STREAM_Y;
+			int streamY = arrayIndex % (int)PIXEL_PER_STREAM_Y;
 			//fract_ptr->setPixel(i, j, sf::Color(imageHost[width * j + i].r, imageHost[width * j + i].g, imageHost[width * j + i].b));
-			fract_ptr->setPixel(i, j, sf::Color(255, 0, 0));
+			fract_ptr->setPixel(streamNumber, arrayIndex, sf::Color(255, 0, 0));
 		}
 	}
 
@@ -59,8 +61,8 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixel *ima
 __global__ void distanceField(const float3 &view1, pixel* img, float t, int2 streamID)
 {
 
-	int idx = (PIXEL_PER_STREAM * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
-	int idy = (PIXEL_PER_STREAM * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
+	int idx = (PIXEL_PER_STREAM_X * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
+	int idy = (PIXEL_PER_STREAM_Y * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
 	float3 view{ 0, 0, -10 };
@@ -135,8 +137,8 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk)
 {
 
-	int idx = (PIXEL_PER_STREAM * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
-	int idy = (PIXEL_PER_STREAM * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
+	int idx = (PIXEL_PER_STREAM_X * streamID.x) + blockDim.x * blockIdx.x + threadIdx.x;
+	int idy = (PIXEL_PER_STREAM_Y * streamID.y) + blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * WIDTH + idx;
 
 	float3 view{ 0, 0, -10 };
@@ -213,7 +215,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 			img[x].g = color.y * lightColor.y;
 			img[x].b = color.z * lightColor.z;
 
-			
+
 
 			break;
 		}
