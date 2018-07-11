@@ -22,7 +22,7 @@
 #define WIDTH 512.0
 #define HEIGHT 512.0
 #define MAX_STEPS 128
-#define EPSILON 0.0005f
+#define EPSILON 0.00005f
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
 #define NUM_STREAMS 1

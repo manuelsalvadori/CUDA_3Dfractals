@@ -177,9 +177,10 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	//return distanceFromClosestObject = mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	return mengerBox(rotY(iteratedPointPosition, t), 3);
-	//return sdfSphere(iteratedPointPosition, 0.5f);
+	return mandelbulb(rotY(iteratedPointPosition,t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//float mBox = mengerBox(rotY(iteratedPointPosition, t), 3);
+	//float sphere = sdfSphere(iteratedPointPosition + float3{ 2.0f,2.0f,0.0f }, 0.5f);
+	//return mBox;
 }
 
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, float epsilon, int2 streamID)
@@ -201,6 +202,12 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 	float3 rayOrigin = { 0, 0, view.z };
 	float3 rayDirection = normalize(point - rayOrigin);
 
+	float3 lightPosition{ 1.0f,1.0f,view.z };
+	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
+	float3 lightColor = normalize(float3{ 66.0f,1340.f,2440.f });
+
+	float3 halfVector = normalize(-lightDirection - rayDirection);
+
 	// Background color
 	if (idx < WIDTH && idy < HEIGHT) {
 		img[x].r = 0;
@@ -216,6 +223,9 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		distanceFromClosestObject = DE(iteratedPointPosition, t);
+
+		lightPosition = float3{ 1.0f,1.0f,view.z };
+		lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 
 		// Far plane 
 		if (distanceTraveled > 100.0f)
@@ -235,15 +245,20 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, float e
 			float z1 = DE(iteratedPointPosition + zDir, t);
 			float z2 = DE(iteratedPointPosition - zDir, t);
 
-			float3 color = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
+			float3 normal = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
 
 			////Faceforward
-			color = -color;
+			normal = -normal;
+
+			float3 color{ 255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS) };
+
+			float weight = dot(normal, lightDirection);
 
 			// Sphere color
-			img[x].r = 255 * color.x;
-			img[x].g = 255 * color.y;
-			img[x].b = 255 * color.z;
+			img[x].r = weight * 255 * lightColor.x;
+			img[x].g = weight * 255 * lightColor.y;
+			img[x].b = weight * 255 * lightColor.z;
+
 			break;
 		}
 
