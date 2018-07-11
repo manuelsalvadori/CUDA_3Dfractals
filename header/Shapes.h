@@ -65,28 +65,28 @@ __device__ float crossCubeSolid(float3 p, float3 b)
 	return min(da, min(db, dc));
 }
 
-__device__ float mengerSponge(float3 p)
-{
-	float d = cubeSolid(p, float3{ 0.5f,0.5f,0.5f });
-
-	float s = 1.0;
-	for (int m = 0; m < 3; m++)
-	{
-		int3 b = int3{ (int)p.x * s, (int)p.y * s,(int)p.z * s };
-		float3 a = float3{ b.x % 2, b.y % 2 ,b.z % 2 } -1.0;
-		s *= 3.0;
-		float3 r = fabs(float3{ 1.0f,1.0,1.0f } -3.0*fabs(a));
-
-		float da = max(r.x, r.y);
-		float db = max(r.y, r.z);
-		float dc = max(r.z, r.x);
-		float c = (min(da, min(db, dc)) - 1.0) / s;
-
-		d = max(d, c);
-	}
-
-	return d;
-}
+//__device__ float mengerSponge(float3 p)
+//{
+//	float d = cubeSolid(p, float3{ 0.5f,0.5f,0.5f });
+//
+//	float s = 1.0;
+//	for (int m = 0; m < 3; m++)
+//	{
+//		float3 b = float3{ p.x * s, p.y * s,p.z * s };
+//		float3 a = float3{ (int)b.x % 2, (int)b.y % 2 ,(int)b.z % 2 } -1.0;
+//		s *= 3.0;
+//		float3 r = fabs(float3{ 1.0f,1.0,1.0f } -3.0*fabs(a));
+//
+//		float da = max(r.x, r.y);
+//		float db = max(r.y, r.z);
+//		float dc = max(r.z, r.x);
+//		float c = (min(da, min(db, dc)) - 1.0) / s;
+//
+//		d = max(d, c);
+//	}
+//
+//	return d;
+//}
 
 
 __device__ float sierpinskiPyramidNotOpt(float3 z, int iteration = 3, float scale = 1.0f, float offset = 0.0f)
@@ -149,24 +149,24 @@ __device__ float sierpinskiPyramidOpt(float3 z, int iteration = 3, float scale =
 	return (length(z)) * pow(scale, (float)(-1*n));
 }
 
-__device__ float sierpinskiPyramidTest(float3 z, int iteration = 3, float scale = 1.0f, float offset = 0.0f)
-{
-	/*float3 c = float3{ 0.0f,0.0f ,0.0f };
-	int n = 0;
-	float dist = 0;
-	float d = 0;
-
-	while (n < iteration) {
-		for (int i = 0; i < vertices.length(); i++) {
-			d = length(z - vertices[i]);
-			if (i == 0 || d < dist) { c = vertices[i]; dist = d; }
-		}
-		z = scale * z - c * (scale - 1.0);
-		float 	r = dot(z, z);
-		n++;
-	}
-
-	return length(z) * pow(scale, (float)-n);*/
-
-}
+//__device__ float sierpinskiPyramidTest(float3 z, int iteration = 3, float scale = 1.0f, float offset = 0.0f)
+//{
+//	float3 c = float3{ 0.0f,0.0f ,0.0f };
+//	int n = 0;
+//	float dist = 0;
+//	float d = 0;
+//
+//	while (n < iteration) {
+//		for (int i = 0; i < vertices.length(); i++) {
+//			d = length(z - vertices[i]);
+//			if (i == 0 || d < dist) { c = vertices[i]; dist = d; }
+//		}
+//		z = scale * z - c * (scale - 1.0);
+//		float 	r = dot(z, z);
+//		n++;
+//	}
+//
+//	return length(z) * pow(scale, (float)-n);
+//
+//}
 #endif /*SHAPES_H_*/

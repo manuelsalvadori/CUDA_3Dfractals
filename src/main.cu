@@ -28,17 +28,30 @@ int main()
 	CHECK(cudaEventCreate(&stop));
 
 	// Host pinned memory allocation
-	pixel* imageHost[NUM_STREAMS];
+	pixelRegionForStream* imageHost[NUM_STREAMS];
 	// Device memory allocation
-	pixel* imgDevice[NUM_STREAMS];
+	pixelRegionForStream* imgDevice[NUM_STREAMS];
 	// Create necessary streams
 	cudaStream_t stream[NUM_STREAMS];
 
+
 	for (int i = 0; i < NUM_STREAMS; i++) {
-		CHECK(cudaMallocHost((pixel**)&imageHost[i], sizeof(pixel)*(width / sqrt(NUM_STREAMS))*(height / sqrt(NUM_STREAMS))));
-		CHECK(cudaMalloc((pixel**)&imgDevice[i], sizeof(pixel)*(width / sqrt(NUM_STREAMS))*(height / sqrt(NUM_STREAMS))));
+		CHECK(cudaMallocHost((pixelRegionForStream**)&imageHost[i], sizeof(pixelRegionForStream)));
+		CHECK(cudaMalloc((pixelRegionForStream**)&imgDevice[i], sizeof(pixelRegionForStream)));
 		CHECK(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
 	}
+
+	////Test, setta a bianco
+	//for (int i = 0; i < NUM_STREAMS; i++)
+	//{
+	//	for (int j = 0; j < PIXEL_PER_STREAM; j++)
+	//	{
+	//		pixel* temp = *imageHost[i];
+	//		temp[j].r = 255;
+	//		temp[j].g = 0;
+	//		temp[j].b = 0;
+	//	}
+	//}
 
 
 	int frameCounter = 0;
@@ -58,7 +71,7 @@ int main()
 		CHECK(cudaEventSynchronize(stop));
 		float milliseconds = 0;
 		CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
-		printf("Tempo calcolo frame: %fs\n", (milliseconds/1000));
+		printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
 		printf("--------------\n", (milliseconds / 1000));
 		frameCounter++;
 
