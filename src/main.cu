@@ -56,6 +56,7 @@ int main()
 
 	int frameCounter = 0;
 
+
 	// loop
 	while (window.isOpen())
 	{
@@ -74,6 +75,7 @@ int main()
 		printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
 		printf("--------------\n", (milliseconds / 1000));
 		frameCounter++;
+
 
 
 		// event handling

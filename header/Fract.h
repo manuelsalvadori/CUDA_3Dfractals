@@ -24,14 +24,15 @@
 
 #define WIDTH 512.0
 #define HEIGHT 512.0
-#define MAX_STEPS 128
-#define EPSILON 0.00005f
+#define MAX_STEPS 32
+#define EPSILON 0.01f
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
 #define NUM_STREAMS 16
 #define PIXEL_PER_STREAM_X (int)(WIDTH / 4)
 #define PIXEL_PER_STREAM_Y (int)(HEIGHT / 4)
 #define PIXEL_PER_STREAM (int)((WIDTH / 4)*(HEIGHT / 4))
+#define MASK_SIZE 7
 
 typedef pixel pixelRegionForStream[PIXEL_PER_STREAM];
 
@@ -54,8 +55,7 @@ private:
 };
 
 ////Global memory
-//__constant__ sf::Vector3f* upDevice;
-//__constant__ sf::Vector3f* rightDevice;
+
 
 // Kernel functions
 __global__ void distanceField(const float3 &view, pixel* img, float t, int2 streamID);

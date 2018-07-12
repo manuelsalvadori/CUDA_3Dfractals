@@ -15,6 +15,8 @@ int Fract::getHeight() const
 	return height;
 }
 
+//__device__ int globalCounter;
+
 std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
 {
 
@@ -28,12 +30,12 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	int2 streamID{ 0,0 };
 
 	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
-		streamID.x = streamNumber / (width / (BLOCK_DIM_Y*NUM_STREAMS));
-		streamID.y = streamNumber % (width / (BLOCK_DIM_X*NUM_STREAMS));
+		streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
+		streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
 		pixel* streamRegionHost = imageHost[streamNumber];
 		pixel* streamRegionDevice = imageDevice[streamNumber];
 		computeNormals << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (view, streamRegionDevice, rotation, streamID, peakClk);
-		cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]);
+		CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
 	}
 
 	CHECK(cudaDeviceSynchronize());
@@ -43,6 +45,10 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	// Copy final img of the frame
 	//CHECK(cudaMemcpy(imageHost, imageDevice, sizeof(pixel)*width*height, cudaMemcpyDeviceToHost));
 
+	cudaEvent_t i, e;
+	CHECK(cudaEventCreate(&i));
+	CHECK(cudaEventCreate(&e));
+	cudaEventRecord(i);
 	// Fill the window with img
 	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++)
 	{
@@ -52,8 +58,8 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 			int regionX = arrayIndex / PIXEL_PER_STREAM_X;
 			int regionY = arrayIndex % PIXEL_PER_STREAM_X;
 
-			streamID.x = streamNumber / (width / (BLOCK_DIM_X*NUM_STREAMS));
-			streamID.y = streamNumber % (width / (BLOCK_DIM_X*NUM_STREAMS));
+			streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
+			streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
 
 			int imgX = regionX + (streamID.x*PIXEL_PER_STREAM_X);
 			int imgY = regionY + (streamID.y*PIXEL_PER_STREAM_Y);
@@ -62,7 +68,12 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 			fract_ptr->setPixel(imgX, imgY, sf::Color(streamRegionHost[arrayIndex].r, streamRegionHost[arrayIndex].g, streamRegionHost[arrayIndex].b));
 		}
 	}
-
+	cudaEventRecord(e);
+	cudaEventSynchronize(i);
+	cudaEventSynchronize(e);
+	float time = 0.0f;
+	cudaEventElapsedTime(&time, i, e);
+	printf("Time for %f\n", time);
 	rotation += 0.174533;
 
 	return fract_ptr;
@@ -93,6 +104,7 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t, int2 str
 
 __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t)
 {
+
 	// Background color
 	if (idx < WIDTH && idy < HEIGHT) {
 		img[x].r = 0;
@@ -138,14 +150,20 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
 	return mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	//float mBox = mengerBox(rotY(iteratedPointPosition, t), 3);
-	//float sphere = sdfSphere(iteratedPointPosition + float3{ 2.0f,2.0f,0.0f }, 0.5f);
-	//return mBox;
+	//return mengerBox(rotY(iteratedPointPosition, t), 3);
+	//return sdfSphere(iteratedPointPosition, 1.0f);
+	//return crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
 
 }
 
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk)
 {
+	__shared__ int blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)];
+	int2 sharedId{ threadIdx.x + (MASK_SIZE / 2),threadIdx.y + (MASK_SIZE / 2) };
+
+	__shared__ int  globalCounter;
+	globalCounter = 0;
+	__syncthreads();
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
@@ -177,14 +195,35 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 		img[x].b = 0;
 	}
 
+	bool hitOk = false;
+
 	// Clock extimate
 	long long int startForTimer = clock64();
 
 	float distanceTraveled = 0.0;
-	const int maxSteps = MAX_STEPS;
+
 	float distanceFromClosestObject = 0;
-	for (int i = 0; i < maxSteps; ++i)
+	for (int i = 0; i < MAX_STEPS; ++i)
 	{
+		// If 80% of the pixels in the block hit something, block the computation
+		// Use the mean of neighbour pixel as color
+		if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
+		{
+			float meanValue = 0.0f;
+			for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
+			{
+				for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
+				{
+					meanValue += blockResults[sharedId.x + i][sharedId.y + j];
+				}
+			}
+
+			meanValue /= (MASK_SIZE*MASK_SIZE);
+			blockResults[sharedId.x][sharedId.y] = meanValue;
+			hitOk = true;
+			break;
+		}
+
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		distanceFromClosestObject = DE(iteratedPointPosition, t);
@@ -219,14 +258,10 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 			float weight = dot(normal, lightDirection);
 
-			// Sphere color
-
-			img[x].r = color.x * lightColor.x;
-			img[x].g = color.y * lightColor.y;
-			img[x].b = color.z * lightColor.z;
-
-
-
+			// Save color
+			blockResults[sharedId.x][sharedId.y] = weight * color.x;
+			hitOk = true;
+			atomicAdd(&globalCounter, 1);
 			break;
 		}
 
@@ -238,9 +273,19 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 	long long endForTimer = clock64();
 
+	__syncthreads();
+
+	if (hitOk == true && idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y)
+	{
+		//Set final color
+		img[x].r = blockResults[sharedId.x][sharedId.y] * lightColor.x  /*+ (endForTimer - startForTimer) / ((float)peakClk)*/;
+		img[x].g = blockResults[sharedId.x][sharedId.y] * lightColor.y;
+		img[x].b = blockResults[sharedId.x][sharedId.y] * lightColor.z;
+	}
+
 
 	if (idx == 0 && idy == 0)
-		printf("Tempo di esecuzione for per il primo thread: %fs\n", ((endForTimer - startForTimer) / ((float)peakClk)));
+		printf("Tempo di esecuzione for per il primo thread, in stream %d, %d: %fs\n", streamID.x, streamID.y, ((endForTimer - startForTimer) / ((float)peakClk * 1000)));
 
 
 
