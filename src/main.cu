@@ -41,6 +41,9 @@ int main()
 		CHECK(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
 	}
 
+
+
+
 	////Test, setta a bianco
 	//for (int i = 0; i < NUM_STREAMS; i++)
 	//{

@@ -54,15 +54,15 @@ private:
 
 };
 
-////Global memory
-
+// Global memory
 
 // Kernel functions
-__global__ void distanceField(const float3 &view, pixel* img, float t, int2 streamID);
-__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t);
-__device__ float DE(const float3 &iteratedPointPosition, float t);
-__global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk);
-__global__ void childKernel();
+
+//__global__ void distanceField(const float3 &view, pixel* img, float t, int2 streamID, float* normals);
+//__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t, float*);
+__global__ void DE(const float3 iteratedPointPosition, float t, int normalID, int streamN);
+__global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int streamN, int peakClk);
+__global__ void childKernel(float3 numeroACaso);
 __device__ float sphereSolid(float3, float);
 
 __device__ float cubeHollow(float3 ro, float3 b);
