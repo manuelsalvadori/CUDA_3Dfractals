@@ -74,7 +74,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	float time = 0.0f;
 	cudaEventElapsedTime(&time, i, e);
 	printf("Time for %f\n", time);
-	rotation += 0.174533;
+	rotation += 0.0174533;
 
 	return fract_ptr;
 }
@@ -149,10 +149,14 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	return mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//return mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//float n2 = sdfBox(iteratedPointPosition + float3{ 0.0f,-1.5f,0.0f }, float3{4.0f,0.1f,4.0f});
+	//return mengerBox(rotY(dodecaFold(iteratedPointPosition), t), 3); //MOLTO FIGO :DDDDD
+	return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
-	//return sdfSphere(iteratedPointPosition, 1.0f);
+	//eturn sdfSphere(iteratedPointPosition, 1.0f);
 	//return crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
+	//return shapeUnion(n1,n2);
 
 }
 

@@ -169,4 +169,9 @@ __device__ float sierpinskiPyramidOpt(float3 z, int iteration = 3, float scale =
 //	return length(z) * pow(scale, (float)-n);
 //
 //}
+
+
+
+
+
 #endif /*SHAPES_H_*/

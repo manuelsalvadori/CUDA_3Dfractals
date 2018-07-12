@@ -10,7 +10,11 @@
 #include <memory>
 #include <math.h> 
 #include <cmath>
+#include <lodepng.h>
 #include <cutil_math.h>
+#include "Bitmap.h"
+#include "BitmapInfoHeader.h"
+#include "BitmapFileHeader.h"
 #include <SFML/Graphics/Export.hpp>
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
