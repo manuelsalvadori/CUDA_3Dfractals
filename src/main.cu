@@ -38,7 +38,7 @@ int main()
 	for (int i = 0; i < NUM_STREAMS; i++) {
 		CHECK(cudaMallocHost((pixelRegionForStream**)&imageHost[i], sizeof(pixelRegionForStream)));
 		CHECK(cudaMalloc((pixelRegionForStream**)&imgDevice[i], sizeof(pixelRegionForStream)));
-		CHECK(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
+		CHECK(cudaStreamCreate(&stream[i]));
 	}
 
 	////Test, setta a bianco
@@ -63,7 +63,8 @@ int main()
 		printf("Frame Numero %d\n", frameCounter);
 		CHECK(cudaEventRecord(start));
 		window.clear(background);
-		texture.loadFromImage(*fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk));
+		std::shared_ptr<sf::Image> frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
+		texture.loadFromImage(*frame);
 		sprite.setTexture(texture, true);
 		window.draw(sprite);
 		CHECK(cudaEventRecord(stop));
@@ -74,9 +75,15 @@ int main()
 		CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
 		printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
 		printf("--------------\n", (milliseconds / 1000));
+
+		caveofprogramming::Bitmap bitmap(width,height);
+		for (int i = 0; i < width; i++)
+			for (int j = 0; j < height; j++)
+				bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
+
+		bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
+
 		frameCounter++;
-
-
 
 		// event handling
 		sf::Event event;

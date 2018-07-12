@@ -11,6 +11,8 @@ bin/
 lib/
 x64/
 activity/
+img/
+video/
 
 # Ignora tutti gli header che vengono da librerie esterne
 header/*/
