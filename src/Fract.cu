@@ -15,7 +15,14 @@ int Fract::getHeight() const
 	return height;
 }
 
-//__device__ int globalCounter;
+//Constant memory 
+__constant__ float3 view{ 0, 0, -10.0f };
+__constant__ float3 forward{ 0, 0, 1 };
+__constant__ float3 up{ 0, 1, 0 };
+__constant__ float3 right{ 1, 0, 0 };
+__constant__ float3 rayOrigin = { 0, 0, -10.0f };
+__constant__ float3 lightPosition{ 1.0f,1.0f,2.0f };
+__constant__ float3 lightDirection{ -0.41f,-0.41f,-0.82f }; // Precomputed to use constant memory, original formula is: normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 
 std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
 {
@@ -35,6 +42,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 		pixel* streamRegionHost = imageHost[streamNumber];
 		pixel* streamRegionDevice = imageDevice[streamNumber];
 		computeNormals << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (view, streamRegionDevice, rotation, streamID, peakClk);
+		//shadow << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID);
 		CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
 	}
 
@@ -102,7 +110,7 @@ __global__ void distanceField(const float3 &view1, pixel* img, float t, int2 str
 	distanceExtimator(idx, idy, img, x, rayOrigin, rayDirection, t);
 }
 
-__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float t)
+__device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const float3 &rayOrigin, const float3 &rayDirection, float time)
 {
 
 	// Background color
@@ -119,7 +127,7 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		distanceFromClosestObject = DE(iteratedPointPosition, t);
+		distanceFromClosestObject = DE(iteratedPointPosition, time);
 
 
 		// Far plane 
@@ -144,7 +152,7 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	return distanceFromClosestObject;
 }
 
-__device__ float DE(const float3 &iteratedPointPosition, float t)
+__device__ float DE(const float3 &iteratedPointPosition, float time)
 {
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
@@ -160,7 +168,7 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 
 }
 
-__global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk)
+__global__ void computeNormals(const float3 &view1, pixel* img, float time, int2 streamID, int peakClk)
 {
 	// We keep in shared memory a (padded) block of the size of the block.
 	// This way we can accees the value computed by neighbour pixels.
@@ -176,20 +184,12 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * PIXEL_PER_STREAM_X + idx;
 
-	float3 view{ 0, 0, -10 };
-	float3 forward{ 0, 0, 1 };
-	float3 up{ 0, 1, 0 };
-	float3 right{ 1, 0, 0 };
-
 	float u = 5 * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) - 2.5f;
 	float v = 5 * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - 2.5f;
 
 	float3 point{ u, v,0 };
-
-	float3 rayOrigin = { 0, 0, view.z };
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotY(float3{ 1.0f,1.0f,-2.0f }, t);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -234,7 +234,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		distanceFromClosestObject = DE(iteratedPointPosition, t);
+		distanceFromClosestObject = DE(iteratedPointPosition, time);
 
 		// Far plane 
 		if (distanceTraveled > 100.0f)
@@ -247,12 +247,12 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 			float3 yDir{ 0.0f,0.5773*EPSILON,0.0f };
 			float3 zDir{ 0.0f,0.0f,0.5773*EPSILON };
 
-			float x1 = DE(iteratedPointPosition + xDir, t);
-			float x2 = DE(iteratedPointPosition - xDir, t);
-			float y1 = DE(iteratedPointPosition + yDir, t);
-			float y2 = DE(iteratedPointPosition - yDir, t);
-			float z1 = DE(iteratedPointPosition + zDir, t);
-			float z2 = DE(iteratedPointPosition - zDir, t);
+			float x1 = DE(iteratedPointPosition + xDir, time);
+			float x2 = DE(iteratedPointPosition - xDir, time);
+			float y1 = DE(iteratedPointPosition + yDir, time);
+			float y2 = DE(iteratedPointPosition - yDir, time);
+			float z1 = DE(iteratedPointPosition + zDir, time);
+			float z2 = DE(iteratedPointPosition - zDir, time);
 
 			normal = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
 
@@ -269,9 +269,9 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 			weight = dot(normal, halfVector);
 
 			// Save color
-			blockResults[sharedId.x][sharedId.y] = (1-weight) * color.x;
-			hitOk = true;
+			blockResults[sharedId.x][sharedId.y] = (1 - weight) * color.x;
 			atomicAdd(&globalCounter, 1);
+			hitOk = true;
 			break;
 		}
 
@@ -300,6 +300,27 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 
 
+}
+
+__global__ void shadow(pixel* img, float time, int2 streamID)
+{
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int idy = blockDim.y * blockIdx.y + threadIdx.y;
+	int x = idy * PIXEL_PER_STREAM_X + idx;
+
+
+	for (float t = 0; t < MAX_STEPS; t++)
+	{
+		float distanceFromClosestObject = DE(lightPosition + lightDirection * t, time);
+		if (distanceFromClosestObject < EPSILON)
+		{
+			// Apply hard shadow
+			img[x].r = 255;
+			/*img[x].g = 0;
+			img[x].b = 0;*/
+		}
+		t += distanceFromClosestObject;
+	}
 }
 
 __global__ void childKernel()
