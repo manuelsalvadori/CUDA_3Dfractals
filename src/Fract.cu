@@ -149,12 +149,12 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	//return mandelbulb(rotY(iteratedPointPosition, t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//float n2 = sdfBox(iteratedPointPosition + float3{ 0.0f,-1.5f,0.0f }, float3{4.0f,0.1f,4.0f});
 	//return mengerBox(rotY(dodecaFold(iteratedPointPosition), t), 3); //MOLTO FIGO :DDDDD
-	return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
-	//eturn sdfSphere(iteratedPointPosition, 1.0f);
+	//return sdfSphere(iteratedPointPosition , 1.0f);
 	//return crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
 	//return shapeUnion(n1,n2);
 
@@ -162,9 +162,12 @@ __device__ float DE(const float3 &iteratedPointPosition, float t)
 
 __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 streamID, int peakClk)
 {
+	// We keep in shared memory a (padded) block of the size of the block.
+	// This way we can accees the value computed by neighbour pixels.
 	__shared__ int blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)];
 	int2 sharedId{ threadIdx.x + (MASK_SIZE / 2),threadIdx.y + (MASK_SIZE / 2) };
 
+	// Counter that keep track of how many pixel in the block are already computed.
 	__shared__ int  globalCounter;
 	globalCounter = 0;
 	__syncthreads();
@@ -186,11 +189,9 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 	float3 rayOrigin = { 0, 0, view.z };
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition{ 1.0f,1.0f,view.z };
+	float3 lightPosition = rotY(float3{ 1.0f,1.0f,-2.0f }, t);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
-
-	float3 halfVector = normalize(-lightDirection - rayDirection);
 
 	// Background color
 	if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y) {
@@ -200,6 +201,9 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 	}
 
 	bool hitOk = false;
+	float3 normal{ 0.0f,0.0f,0.0f };
+	float3 halfVector{ 0.0f,0.0f,0.0f };
+	float weight = 0.0f;
 
 	// Clock extimate
 	long long int startForTimer = clock64();
@@ -232,9 +236,6 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 
 		distanceFromClosestObject = DE(iteratedPointPosition, t);
 
-		lightPosition = float3{ 1.0f,1.0f,view.z };
-		lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
-
 		// Far plane 
 		if (distanceTraveled > 100.0f)
 			break;
@@ -253,17 +254,22 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float t, int2 st
 			float z1 = DE(iteratedPointPosition + zDir, t);
 			float z2 = DE(iteratedPointPosition - zDir, t);
 
-			float3 normal = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
+			normal = normalize(float3{ x1 - x2 ,y1 - y2,z1 - z2 });
 
 			//Faceforward
-			normal = -normal;
+			if (dot(-rayDirection, normal) < 0)
+				normal = -normal;
+
+			// halfVector
+			halfVector = (-lightDirection + normal) / length(-lightDirection + normal);
+
 
 			float3 color{ 255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS) };
 
-			float weight = dot(normal, lightDirection);
+			weight = dot(normal, halfVector);
 
 			// Save color
-			blockResults[sharedId.x][sharedId.y] = weight * color.x;
+			blockResults[sharedId.x][sharedId.y] = (1-weight) * color.x;
 			hitOk = true;
 			atomicAdd(&globalCounter, 1);
 			break;
