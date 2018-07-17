@@ -76,7 +76,7 @@ int main()
 		printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
 		printf("--------------\n", (milliseconds / 1000));
 
-		caveofprogramming::Bitmap bitmap(width,height);
+		caveofprogramming::Bitmap bitmap(width, height);
 		for (int i = 0; i < width; i++)
 			for (int j = 0; j < height; j++)
 				bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
@@ -84,6 +84,9 @@ int main()
 		bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
 
 		frameCounter++;
+
+		if (frameCounter >= 360)
+			window.close();
 
 		// event handling
 		sf::Event event;

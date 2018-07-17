@@ -79,7 +79,10 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	float time = 0.0f;
 	cudaEventElapsedTime(&time, i, e);
 	printf("Time for %f\n", time);
-	rotation += 0.174533;
+
+	// Rotation increment in each frame in radiants.
+	// 1 grade is 0.0174533 radiants
+	rotation += 0.0174533;
 
 	return fract_ptr;
 }
@@ -154,14 +157,15 @@ __device__ float DE(const float3 &iteratedPointPosition, float time = 0)
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
+	//return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//float n2 = sdfBox(iteratedPointPosition + float3{ 0.0f,-1.5f,0.0f }, float3{4.0f,0.1f,4.0f});
-	//return mengerBox(rotY(dodecaFold(iteratedPointPosition), t), 3); //MOLTO FIGO :DDDDD
+	//float n2 =  mengerBox(rotY(dodecaFold(iteratedPointPosition), time), 3); //MOLTO FIGO :DDDDD
+	float n2 =  mengerBox(iteratedPointPosition, 3); 
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
-	//return crossCubeSolid(rotY(iteratedPointPosition, t), float3{ 0.5f,0.5f,0.5f });
-	//return shapeUnion(n1,n2);
+	float n1 = crossCubeSolid(iteratedPointPosition, float3{ 1.0f,1.0f,1.0f });
+	return shapeUnion(n1,n2);
 
 }
 
@@ -187,7 +191,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 	float3 point{ u, v,0 };
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotY(float3{ 1.0f,1.0f,2.0f }, time);
+	float3 lightPosition = rotY(float3{ 1.0f,0.0f,0.0f }, time);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -271,7 +275,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 			weightShadow = shadow(iteratedPointPosition, -lightDirection);
 
 			// Save color
-			blockResults[sharedId.x][sharedId.y] = (1 - weightShadow) * (1 - weightLight) * color.x;
+			blockResults[sharedId.x][sharedId.y] = (weightShadow) * (weightLight) * color.x;
 			atomicAdd(&globalCounter, 1);
 			hitOk = true;
 			break;
