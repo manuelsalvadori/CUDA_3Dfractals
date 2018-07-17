@@ -21,8 +21,6 @@ __constant__ float3 forward{ 0, 0, 1 };
 __constant__ float3 up{ 0, 1, 0 };
 __constant__ float3 right{ 1, 0, 0 };
 __constant__ float3 rayOrigin = { 0, 0, -10.0f };
-__constant__ float3 lightPosition{ 1.0f,1.0f,2.0f };
-__constant__ float3 lightDirection{ -0.41f,-0.41f,-0.82f }; // Precomputed to use constant memory, original formula is: normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 
 std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
 {
@@ -42,7 +40,6 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 		pixel* streamRegionHost = imageHost[streamNumber];
 		pixel* streamRegionDevice = imageDevice[streamNumber];
 		computeNormals << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (view, streamRegionDevice, rotation, streamID, peakClk);
-		//shadow << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID);
 		CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
 	}
 
@@ -82,7 +79,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	float time = 0.0f;
 	cudaEventElapsedTime(&time, i, e);
 	printf("Time for %f\n", time);
-	rotation += 0.0174533;
+	rotation += 0.174533;
 
 	return fract_ptr;
 }
@@ -152,7 +149,7 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	return distanceFromClosestObject;
 }
 
-__device__ float DE(const float3 &iteratedPointPosition, float time)
+__device__ float DE(const float3 &iteratedPointPosition, float time = 0)
 {
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
@@ -190,6 +187,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 	float3 point{ u, v,0 };
 	float3 rayDirection = normalize(point - rayOrigin);
 
+	float3 lightPosition = rotY(float3{ 1.0f,1.0f,2.0f }, time);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -203,13 +201,13 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 	bool hitOk = false;
 	float3 normal{ 0.0f,0.0f,0.0f };
 	float3 halfVector{ 0.0f,0.0f,0.0f };
-	float weight = 0.0f;
+	float weightLight = 0.0f;
+	float weightShadow = 0.0f;
 
 	// Clock extimate
 	long long int startForTimer = clock64();
 
 	float distanceTraveled = 0.0;
-
 	float distanceFromClosestObject = 0;
 	for (int i = 0; i < MAX_STEPS; ++i)
 	{
@@ -263,13 +261,17 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 			// halfVector
 			halfVector = (-lightDirection + normal) / length(-lightDirection + normal);
 
-
+			// The color is the number of iteration
 			float3 color{ 255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS),255 - ((i * 255) / MAX_STEPS) };
 
-			weight = dot(normal, halfVector);
+			// Weight of light in the final color
+			weightLight = dot(normal, halfVector);
+
+			// Weight of shadow
+			weightShadow = shadow(iteratedPointPosition, -lightDirection);
 
 			// Save color
-			blockResults[sharedId.x][sharedId.y] = (1 - weight) * color.x;
+			blockResults[sharedId.x][sharedId.y] = (1 - weightShadow) * (1 - weightLight) * color.x;
 			atomicAdd(&globalCounter, 1);
 			hitOk = true;
 			break;
@@ -302,25 +304,19 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 
 }
 
-__global__ void shadow(pixel* img, float time, int2 streamID)
+__device__ float shadow(float3 origin, float3 direction)
 {
-	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	int idy = blockDim.y * blockIdx.y + threadIdx.y;
-	int x = idy * PIXEL_PER_STREAM_X + idx;
-
-
-	for (float t = 0; t < MAX_STEPS; t++)
+	float res = 1.0;
+	float mint = 0.02f;
+	float maxt = 2.5f;
+	for (int i = 0; i < 16; i++)
 	{
-		float distanceFromClosestObject = DE(lightPosition + lightDirection * t, time);
-		if (distanceFromClosestObject < EPSILON)
-		{
-			// Apply hard shadow
-			img[x].r = 255;
-			/*img[x].g = 0;
-			img[x].b = 0;*/
-		}
-		t += distanceFromClosestObject;
+		float h = DE(origin + direction * mint);
+		res = min(res, 8.0*h / mint);
+		mint += clamp(h, 0.02, 0.10);
+		if (res<0.005 || mint>maxt) break;
 	}
+	return clamp(res, 0.0, 1.0);
 }
 
 __global__ void childKernel()
