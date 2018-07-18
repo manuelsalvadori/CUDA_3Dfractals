@@ -81,8 +81,8 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	printf("Time for %f\n", time);
 
 	// Rotation increment in each frame in radiants.
-	// 1 grade is 0.0174533 radiants
-	rotation += 0.174533;
+	// 1° is 0.0174533 radiants
+	rotation += 0.0174533;
 
 	return fract_ptr;
 }
@@ -152,22 +152,26 @@ __device__ float distanceExtimator(int idx, int idy, pixel * img, int x, const f
 	return distanceFromClosestObject;
 }
 
-__device__ float DE(const float3 &iteratedPointPosition, float time = 0)
+__device__ float DE(const float3 &iteratedPointPosition, float time)
 {
-	float3 modifiedIteratedPosition = rotate(iteratedPointPosition, upV, time);
+	float3 modifiedIteratedPosition = iteratedPointPosition;
+	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
+
 
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
 	//return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	//float n2 = sdfBox(iteratedPointPosition + float3{ 0.0f,-1.5f,0.0f }, float3{4.0f,0.1f,4.0f});
+	float n3 = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-1.5f,0.0f }, float3{ 10.0f,0.1f,10.0f });
 	//float n2 =  mengerBox(rotY(dodecaFold(iteratedPointPosition), time), 3); //MOLTO FIGO :DDDDD
 	float n2 = mengerBox(modifiedIteratedPosition, 3);
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
 	float n1 = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
-	return shapeUnion(n1, n2);
+	return shapeUnion(shapeUnion(n1, n2), n3);
 
 }
 
@@ -193,7 +197,7 @@ __global__ void computeNormals(const float3 &view1, pixel* img, float time, int2
 	float3 point = rightV * u + upV * v;;
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotate(float3{ 1.0f,0.0f,-1.0f }, float3{ 0,1,0 }, 0);
+	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, time);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -317,7 +321,7 @@ __device__ float softShadow(float3 origin, float3 direction, float time)
 	float maxt = 2.5f;
 	for (int i = 0; i < 16; i++)
 	{
-		float h = DE(origin + direction * mint,time);
+		float h = DE(origin + direction * mint, time);
 		res = min(res, 16.0*h / mint);
 		mint += clamp(h, 0.02, 0.10);
 		if (res<0.005 || mint>maxt) break;
@@ -332,7 +336,7 @@ __device__ float hardShadow(float3 origin, float3 direction, float time)
 	float maxt = 2.5f;
 	for (float t = mint; t < maxt; )
 	{
-		float h = DE(origin + direction * t,time);
+		float h = DE(origin + direction * t, time);
 		if (h < EPSILON)
 			return 0.0;
 		t += h;
