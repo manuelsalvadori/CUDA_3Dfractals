@@ -14,19 +14,14 @@ int Fract::getHeight() const
 	return height;
 }
 
-//Constant memory 
-__constant__ float3 view{ 0, 0, -10.0f };
-__constant__ float3 forwardV{ 0, 0, 1 };
-__constant__ float3 upV{ 0, 1, 0 };
-__constant__ float3 rightV{ 1, 0, 0 };
-__constant__ float3 rayOrigin = { 0, 0, -10.0f };
-
 std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
 {
 
+	// Craete img
 	std::unique_ptr<sf::Image> fract_ptr(new sf::Image());
 	fract_ptr->create(width, height, sf::Color::White);
 
+	// Define block and grid dimension
 	dim3 dimBlock(BLOCK_DIM_X, BLOCK_DIM_Y);
 	dim3 dimGrid(width / (BLOCK_DIM_X*sqrt(NUM_STREAMS)), height / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)));
 
@@ -48,6 +43,16 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 
 
 	// Fill the window with img
+	fillImgWindow(imageHost, streamID, fract_ptr);
+
+	// Rotation increment in each frame in radiants.
+	rotation += 0.0174533;	// 1° is 0.0174533 radiants
+
+	return fract_ptr;
+}
+
+void Fract::fillImgWindow(pixelRegionForStream * imageHost, int2 &streamID, std::unique_ptr<sf::Image> &fract_ptr)
+{
 	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++)
 	{
 		pixel* streamRegionHost = imageHost[streamNumber];
@@ -66,12 +71,14 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 			fract_ptr->setPixel(imgX, imgY, sf::Color(streamRegionHost[arrayIndex].r, streamRegionHost[arrayIndex].g, streamRegionHost[arrayIndex].b));
 		}
 	}
-
-	// Rotation increment in each frame in radiants.
-	rotation += 0.0174533;	// 1° is 0.0174533 radiants
-
-	return fract_ptr;
 }
+
+//Constant memory 
+__constant__ float3 view{ 0, 0, -10.0f };
+__constant__ float3 forwardV{ 0, 0, 1 };
+__constant__ float3 upV{ 0, 1, 0 };
+__constant__ float3 rightV{ 1, 0, 0 };
+__constant__ float3 rayOrigin = { 0, 0, -10.0f };
 
 __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 streamID, int peakClk)
 {

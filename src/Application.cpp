@@ -4,7 +4,7 @@ Application::Application(){}
 
 Application::~Application() {}
 
-void Application::startApplication() {
+ void Application::startApplication() {
 
 	// Window creation and setting
 	int width = WIDTH;
@@ -49,30 +49,14 @@ void Application::startApplication() {
 	while (window.isOpen())
 	{
 		// Compute frame
-		printf("Frame Numero %d\n", frameCounter);
-		CHECK(cudaEventRecord(start));
-		window.clear(background);
-		std::shared_ptr<sf::Image> frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
-		texture.loadFromImage(*frame);
-		sprite.setTexture(texture, true);
-		window.draw(sprite);
-		CHECK(cudaEventRecord(stop));
+		std::shared_ptr<sf::Image> frame;
+		computeFrame(frameCounter, start, window, background, frame, fract, view, imgDevice, imageHost, stream, peakClk, texture, sprite, stop);
 
 		// Measure enlapsed time
-		CHECK(cudaEventSynchronize(start));
-		CHECK(cudaEventSynchronize(stop));
-		float milliseconds = 0;
-		CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
-		printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
-		printf("--------------\n", (milliseconds / 1000));
+		measureEnlapsedTime(start, stop);
 
 		// Save frame 
-		caveofprogramming::Bitmap bitmap(width, height);
-		for (int i = 0; i < width; i++)
-			for (int j = 0; j < height; j++)
-				bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
-
-		bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
+		saveFrame(width, height, frame, frameCounter);
 
 		frameCounter++;
 
@@ -81,18 +65,8 @@ void Application::startApplication() {
 			window.close();
 
 		// Event handling
-		sf::Event event;
-		while (window.pollEvent(event))
-		{
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
-			{
-				// Camera movement
-				// ...
-			}
+		eventHandling(window);
 
-			if (event.type == sf::Event::Closed)
-				window.close();
-		}
 		window.display();
 	}
 
@@ -104,3 +78,51 @@ void Application::startApplication() {
 	}
 
 }
+
+ void Application::eventHandling(sf::RenderWindow &window)
+ {
+	 sf::Event event;
+	 while (window.pollEvent(event))
+	 {
+		 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
+		 {
+			 // Camera movement
+			 // ...
+		 }
+
+		 if (event.type == sf::Event::Closed)
+			 window.close();
+	 }
+ }
+
+ void Application::saveFrame(int width, int height, std::shared_ptr<sf::Image> &frame, int frameCounter)
+ {
+	 caveofprogramming::Bitmap bitmap(width, height);
+	 for (int i = 0; i < width; i++)
+		 for (int j = 0; j < height; j++)
+			 bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
+
+	 bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
+ }
+
+ void Application::measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop)
+ {
+	 CHECK(cudaEventSynchronize(start));
+	 CHECK(cudaEventSynchronize(stop));
+	 float milliseconds = 0;
+	 CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
+	 printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
+	 printf("--------------\n", (milliseconds / 1000));
+ }
+
+ void Application::computeFrame(int frameCounter, const cudaEvent_t &start, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[16], pixelRegionForStream * imageHost[16], cudaStream_t  stream[16], int peakClk, sf::Texture &texture, sf::Sprite &sprite, const cudaEvent_t &stop)
+ {
+	 printf("Frame Numero %d\n", frameCounter);
+	 CHECK(cudaEventRecord(start));
+	 window.clear(background);
+	 frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
+	 texture.loadFromImage(*frame);
+	 sprite.setTexture(texture, true);
+	 window.draw(sprite);
+	 CHECK(cudaEventRecord(stop));
+ }
