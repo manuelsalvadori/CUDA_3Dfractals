@@ -1,7 +1,7 @@
 #ifndef __MATH_UTIL__
 #define __MATH_UTIL__
 
-// should be much more precise with large b
+// Should be much more precise with large b
 inline double __host__ __device__ fastPrecisePow(double a, double b) {
 	union {
 		double d;
