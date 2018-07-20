@@ -30,20 +30,21 @@ public:
 	Fract(int width, int height);
 	virtual ~Fract();
 
-	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk);
 	int getWidth() const;
 	int getHeight() const;
+	std::unique_ptr<sf::Image> generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk);
 
 private:
 	int width;
 	int height;
 	float rotation{ 0 };
+	void fillImgWindow(pixelRegionForStream * imageHost, int2 &streamID, std::unique_ptr<sf::Image> &fract_ptr);
 
 
 };
 
 
-// CUDA functions
+// CUDA 
 // Kernels
 __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 streamID, int peakClk);
 __global__ void childKernel();
