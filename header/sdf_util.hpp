@@ -1,12 +1,13 @@
 #ifndef __SDF_UTIL__
 #define __SDF_UTIL__
 
-#define PHI ((1.0f + sqrtf(5)) / 2.0f)
-#define M_PI 3.14159265359
-
+// CUDA
 #include <cuda_runtime.h>
 #include "cutil_math.h"
 #include <math_util.h>
+
+#define PHI ((1.0f + sqrtf(5)) / 2.0f)
+#define M_PI 3.14159265359
 
 
 // Mod function that doesn't change sign on negative number input, unlike fmod. 
