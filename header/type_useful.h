@@ -11,13 +11,14 @@
 #define EPSILON 0.01f
 #define BLOCK_DIM_X 8
 #define BLOCK_DIM_Y 8
-#define NUM_STREAMS 16
-#define PIXEL_PER_STREAM_X (int)(WIDTH / 4)
-#define PIXEL_PER_STREAM_Y (int)(HEIGHT / 4)
-#define PIXEL_PER_STREAM (int)((WIDTH / 4)*(HEIGHT / 4))
+#define NUM_STREAMS 1
+#define PIXEL_PER_STREAM_X (int)(WIDTH)
+#define PIXEL_PER_STREAM_Y (int)(HEIGHT)
+#define PIXEL_PER_STREAM (int)((WIDTH)*(HEIGHT))
 #define MASK_SIZE 7
 #define FAR_PLANE 100.0f
-#define MAX_NUMBER_OF_FRAMES 360
+#define MAX_NUMBER_OF_FRAMES 1
+#define PARALLEL false
 
 // Color of a pixel
 struct pixel

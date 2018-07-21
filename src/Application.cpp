@@ -50,10 +50,13 @@ void Application::runApplication() {
 	{
 		// Compute frame
 		std::shared_ptr<sf::Image> frame;
+		clock_t begin = clock();
 		computeFrame(frameCounter, start, window, background, frame, fract, view, imgDevice, imageHost, stream, peakClk, texture, sprite, stop);
+		clock_t end = clock();
+		totalEnlapsedTime = (end - begin) / CLOCKS_PER_SEC;
 
 		// Measure enlapsed time
-		measureEnlapsedTime(start, stop);
+		//measureEnlapsedTime(start, stop);
 
 		// Save frame 
 		saveFrame(width, height, frame, frameCounter);
@@ -84,7 +87,7 @@ void Application::cleanupMemory(pixelRegionForStream * imageHost[NUM_STREAMS], p
 {
 	cudaFreeHost(imageHost);
 	cudaFree(imgDevice);
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < NUM_STREAMS; i++) {
 		CHECK(cudaStreamDestroy(stream[i]));
 	}
 }

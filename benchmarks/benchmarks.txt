@@ -118,3 +118,18 @@ Dimensioni maschera filtro: 7
 Tempo di calcolo totale: 2092.943604s
 Tempo di calcolo medio per frame: 5.813732s
 --------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 64x64
+Numero stream: 1
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 37.000000s
+Tempo di calcolo medio per frame: 37.000000s
+--------------
