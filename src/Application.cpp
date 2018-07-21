@@ -1,10 +1,10 @@
 #include <Application.h>
 
-Application::Application(){}
+Application::Application() {}
 
 Application::~Application() {}
 
- void Application::startApplication() {
+void Application::startApplication() {
 
 	// Window creation and setting
 	int width = WIDTH;
@@ -60,9 +60,14 @@ Application::~Application() {}
 
 		frameCounter++;
 
-		// Stop the execution after 360 frames
-		if (frameCounter >= 360)
+		// Stop the execution after MAX_NUMBER_OF_FRAMES
+		if (frameCounter >= MAX_NUMBER_OF_FRAMES) {
+
+			// Log informations
+			logPerformanceInfo(frameCounter);
+
 			window.close();
+		}
 
 		// Event handling
 		eventHandling(window);
@@ -79,50 +84,72 @@ Application::~Application() {}
 
 }
 
- void Application::eventHandling(sf::RenderWindow &window)
- {
-	 sf::Event event;
-	 while (window.pollEvent(event))
-	 {
-		 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
-		 {
-			 // Camera movement
-			 // ...
-		 }
+void Application::logPerformanceInfo(int frameNumber)
+{
+	ofstream benchmarksLog;
+	benchmarksLog.open("benchmarks/benchmarks.txt", ios::app);
+	benchmarksLog << ("Frame renderizzati: " + std::to_string(frameNumber) + "\n");
+	benchmarksLog << ("Dimensione frame: " + std::to_string((int)WIDTH) + "x" + std::to_string((int)HEIGHT) + "\n");
+	benchmarksLog << ("Modello 1: MandelBulb.\n");
+	benchmarksLog << ("Modello 2: Cubo.\n");
+	benchmarksLog << ("Dimensione blocco: " + std::to_string((int)BLOCK_DIM_X) + "x" + std::to_string((int)BLOCK_DIM_Y) + "\n");
+	benchmarksLog << ("Dimensione griglia: " + std::to_string((int)(WIDTH / (BLOCK_DIM_X*sqrt(NUM_STREAMS)))) + "x" + std::to_string((int)(HEIGHT / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)))) + "\n");
+	benchmarksLog << ("Numero stream: " + std::to_string((int)NUM_STREAMS) + "\n");
+	benchmarksLog << ("Numero iterazioni max DE: " + std::to_string((int)MAX_STEPS) + "\n");
+	benchmarksLog << ("Valore epsilon: " + std::to_string(EPSILON) + "\n");
+	benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
+	benchmarksLog << ("Tempo di calcolo totale: " + std::to_string(totalEnlapsedTime) + "s\n");
+	benchmarksLog << ("Tempo di calcolo medio per frame: " + std::to_string(totalEnlapsedTime/MAX_NUMBER_OF_FRAMES) + "s\n");
+	benchmarksLog << ("--------------\n");
+	benchmarksLog.close();
+}
 
-		 if (event.type == sf::Event::Closed)
-			 window.close();
-	 }
- }
+void Application::eventHandling(sf::RenderWindow &window)
+{
+	sf::Event event;
+	while (window.pollEvent(event))
+	{
+		if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
+		{
+			// Camera movement
+			// ...
+		}
 
- void Application::saveFrame(int width, int height, std::shared_ptr<sf::Image> &frame, int frameCounter)
- {
-	 caveofprogramming::Bitmap bitmap(width, height);
-	 for (int i = 0; i < width; i++)
-		 for (int j = 0; j < height; j++)
-			 bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
+		if (event.type == sf::Event::Closed)
+			window.close();
+	}
+}
 
-	 bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
- }
+void Application::saveFrame(int width, int height, std::shared_ptr<sf::Image> &frame, int frameCounter)
+{
+	caveofprogramming::Bitmap bitmap(width, height);
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			bitmap.setPixel(i, j, (uint8_t)frame->getPixel(i, j).r, (uint8_t)frame->getPixel(i, j).g, (uint8_t)frame->getPixel(i, j).b);
 
- void Application::measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop)
- {
-	 CHECK(cudaEventSynchronize(start));
-	 CHECK(cudaEventSynchronize(stop));
-	 float milliseconds = 0;
-	 CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
-	 printf("Tempo calcolo frame: %fs\n", (milliseconds / 1000));
-	 printf("--------------\n", (milliseconds / 1000));
- }
+	bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
+}
 
- void Application::computeFrame(int frameCounter, const cudaEvent_t &start, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[16], pixelRegionForStream * imageHost[16], cudaStream_t  stream[16], int peakClk, sf::Texture &texture, sf::Sprite &sprite, const cudaEvent_t &stop)
- {
-	 printf("Frame Numero %d\n", frameCounter);
-	 CHECK(cudaEventRecord(start));
-	 window.clear(background);
-	 frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
-	 texture.loadFromImage(*frame);
-	 sprite.setTexture(texture, true);
-	 window.draw(sprite);
-	 CHECK(cudaEventRecord(stop));
- }
+void Application::measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop)
+{
+	CHECK(cudaEventSynchronize(start));
+	CHECK(cudaEventSynchronize(stop));
+	float milliseconds = 0;
+	CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
+	float seconds = (milliseconds / 1000);
+	printf("Tempo calcolo frame: %fs\n", seconds);
+	printf("--------------\n");
+	totalEnlapsedTime += seconds;
+}
+
+void Application::computeFrame(int frameCounter, const cudaEvent_t &start, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[16], pixelRegionForStream * imageHost[16], cudaStream_t  stream[16], int peakClk, sf::Texture &texture, sf::Sprite &sprite, const cudaEvent_t &stop)
+{
+	printf("Frame Numero %d\n", frameCounter);
+	CHECK(cudaEventRecord(start));
+	window.clear(background);
+	frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
+	texture.loadFromImage(*frame);
+	sprite.setTexture(texture, true);
+	window.draw(sprite);
+	CHECK(cudaEventRecord(stop));
+}

@@ -17,6 +17,7 @@
 #define PIXEL_PER_STREAM (int)((WIDTH / 4)*(HEIGHT / 4))
 #define MASK_SIZE 7
 #define FAR_PLANE 100.0f
+#define MAX_NUMBER_OF_FRAMES 1
 
 // Color of a pixel
 struct pixel
