@@ -96,8 +96,14 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 
 	int x = coordinates.y*WIDTH + coordinates.x;
 
-	float u = 5 * (coordinates.y / WIDTH) - 2.5f;
-	float v = 5 * (coordinates.x / HEIGHT) - 2.5f;
+	float u = 5 * (coordinates.x / WIDTH) - 2.5f;
+	float v = 5 * (coordinates.y / HEIGHT) - 2.5f;
+
+	float3 view{ 0, 0, -10.0f };
+	float3 forwardV{ 0, 0, 1 };
+	float3 upV{ 0, 1, 0 };
+	float3 rightV{ 1, 0, 0 };
+	float3 rayOrigin = { 0, 0, -10.0f };
 
 	float3 point = rightV * u + upV * v;;
 	float3 rayDirection = normalize(point - rayOrigin);

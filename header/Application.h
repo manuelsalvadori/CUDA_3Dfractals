@@ -11,6 +11,7 @@
 // Standard
 #include <iostream>
 #include <fstream>
+#include <ctime>
 
 // SFML
 #include <SFML/Graphics/Export.hpp>
