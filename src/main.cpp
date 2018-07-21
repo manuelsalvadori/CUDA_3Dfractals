@@ -3,7 +3,7 @@
 int main()
 {
 	std::unique_ptr<Application> app(new Application());
-	app->startApplication();
+	app->runApplication();
 
 	return 0;
 }

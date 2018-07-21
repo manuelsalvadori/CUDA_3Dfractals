@@ -34,16 +34,18 @@ public:
 	Application();
 	virtual ~Application();
 
-	void startApplication();
+	void runApplication();
 
 private:
 	float totalEnlapsedTime = 0.0f;
+	bool isStreamNotBlocking = true;
 
 	void measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop);
 	void computeFrame(int frameCounter, const cudaEvent_t &start, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[16], pixelRegionForStream * imageHost[16], cudaStream_t  stream[16], int peakClk, sf::Texture &texture, sf::Sprite &sprite, const cudaEvent_t &stop);
 	void eventHandling(sf::RenderWindow &window);
 	void saveFrame(int width, int height, std::shared_ptr<sf::Image> &frame, int frameCounter);
 	void logPerformanceInfo(int frameNumber);
+	void cleanupMemory(pixelRegionForStream * imageHost[NUM_STREAMS], pixelRegionForStream * imgDevice[NUM_STREAMS], cudaStream_t  stream[NUM_STREAMS]);
 };
 
 #endif /*__APPLICATION__*/_
