@@ -84,7 +84,7 @@ void Application::cleanupMemory(pixelRegionForStream * imageHost[NUM_STREAMS], p
 {
 	cudaFreeHost(imageHost);
 	cudaFree(imgDevice);
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < NUM_STREAMS; i++) {
 		CHECK(cudaStreamDestroy(stream[i]));
 	}
 }
