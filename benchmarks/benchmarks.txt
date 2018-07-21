@@ -1,13 +1,120 @@
-Frame renderizzati: 1
+Frame renderizzati: 720
 Dimensione frame: 512x512
-Modello 1: MandelBulb.
-Modello 2: Cubo.
+Modello 1: MandelBulb
+Modello 2: Cubo
 Dimensione blocco: 8x8
 Dimensione griglia: 16x16
 Numero stream: 16
 Numero iterazioni max DE: 128
 Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
 Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 2.283076s
-Tempo di calcolo medio per frame: 2.283076s
+Tempo di calcolo totale: 2363.222900s
+Tempo di calcolo medio per frame: 3.282254s
+--------------
+Frame renderizzati: 360
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 1186.640625s
+Tempo di calcolo medio per frame: 3.296224s
+--------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 3.158135s
+Tempo di calcolo medio per frame: 3.158135s
+--------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 5.594033s
+Tempo di calcolo medio per frame: 5.594033s
+--------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 5.595381s
+Tempo di calcolo medio per frame: 5.595381s
+--------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 5.595585s
+Tempo di calcolo medio per frame: 5.595585s
+--------------
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 5.609040s
+Tempo di calcolo medio per frame: 5.609040s
+--------------
+Frame renderizzati: 360
+Dimensione frame: 512x512
+Modello 1: MandelBulb
+Modello 2: Cubo
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 16
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Tempo di calcolo totale: 2092.943604s
+Tempo di calcolo medio per frame: 5.813732s
 --------------

@@ -4,7 +4,7 @@ Application::Application() {}
 
 Application::~Application() {}
 
-void Application::startApplication() {
+void Application::runApplication() {
 
 	// Window creation and setting
 	int width = WIDTH;
@@ -39,7 +39,7 @@ void Application::startApplication() {
 	for (int i = 0; i < NUM_STREAMS; i++) {
 		CHECK(cudaMallocHost((pixelRegionForStream**)&imageHost[i], sizeof(pixelRegionForStream)));
 		CHECK(cudaMalloc((pixelRegionForStream**)&imgDevice[i], sizeof(pixelRegionForStream)));
-		CHECK(cudaStreamCreate(&stream[i]));
+		CHECK(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
 	}
 
 	int frameCounter = 0;
@@ -76,12 +76,17 @@ void Application::startApplication() {
 	}
 
 	// Cleanup
+	cleanupMemory(imageHost, imgDevice, stream);
+
+}
+
+void Application::cleanupMemory(pixelRegionForStream * imageHost[NUM_STREAMS], pixelRegionForStream * imgDevice[NUM_STREAMS], cudaStream_t  stream[NUM_STREAMS])
+{
 	cudaFreeHost(imageHost);
 	cudaFree(imgDevice);
 	for (int i = 0; i < 6; i++) {
 		CHECK(cudaStreamDestroy(stream[i]));
 	}
-
 }
 
 void Application::logPerformanceInfo(int frameNumber)
@@ -90,16 +95,18 @@ void Application::logPerformanceInfo(int frameNumber)
 	benchmarksLog.open("benchmarks/benchmarks.txt", ios::app);
 	benchmarksLog << ("Frame renderizzati: " + std::to_string(frameNumber) + "\n");
 	benchmarksLog << ("Dimensione frame: " + std::to_string((int)WIDTH) + "x" + std::to_string((int)HEIGHT) + "\n");
-	benchmarksLog << ("Modello 1: MandelBulb.\n");
-	benchmarksLog << ("Modello 2: Cubo.\n");
+	benchmarksLog << ("Modello 1: MandelBulb\n");
+	benchmarksLog << ("Modello 2: Cubo\n");
 	benchmarksLog << ("Dimensione blocco: " + std::to_string((int)BLOCK_DIM_X) + "x" + std::to_string((int)BLOCK_DIM_Y) + "\n");
 	benchmarksLog << ("Dimensione griglia: " + std::to_string((int)(WIDTH / (BLOCK_DIM_X*sqrt(NUM_STREAMS)))) + "x" + std::to_string((int)(HEIGHT / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)))) + "\n");
 	benchmarksLog << ("Numero stream: " + std::to_string((int)NUM_STREAMS) + "\n");
 	benchmarksLog << ("Numero iterazioni max DE: " + std::to_string((int)MAX_STEPS) + "\n");
 	benchmarksLog << ("Valore epsilon: " + std::to_string(EPSILON) + "\n");
+	benchmarksLog << ("Stream non bloccanti: true\n");
+	benchmarksLog << ("Trasferimenti asincroni: true\n");
 	benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
 	benchmarksLog << ("Tempo di calcolo totale: " + std::to_string(totalEnlapsedTime) + "s\n");
-	benchmarksLog << ("Tempo di calcolo medio per frame: " + std::to_string(totalEnlapsedTime/MAX_NUMBER_OF_FRAMES) + "s\n");
+	benchmarksLog << ("Tempo di calcolo medio per frame: " + std::to_string(totalEnlapsedTime / MAX_NUMBER_OF_FRAMES) + "s\n");
 	benchmarksLog << ("--------------\n");
 	benchmarksLog.close();
 }
