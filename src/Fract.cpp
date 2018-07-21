@@ -102,16 +102,9 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 	float3 point = rightV * u + upV * v;;
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, time);
+	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, 0);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
-
-	// Background color
-	if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y) {
-		img[x].r = 0;
-		img[x].g = 0;
-		img[x].b = 0;
-	}
 
 	bool hitOk = false;
 	float3 normal{ 0.0f,0.0f,0.0f };
@@ -119,67 +112,33 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 	float weightLight = 0.0f;
 	float weightShadow = 0.0f;
 
-	// Clock extimate
-	long long int startForTimer = clock64();
+	//long long startForTimer = clock64();
 
 	float distanceTraveled = 0.0;
-	infoEstimatorResult distanceFromClosestObject = { 0,float3{0.0f} };
+	infoEstimatorResult distanceFromClosestObject = { 0, float3{0.0f} };
 	for (int i = 0; i < MAX_STEPS; ++i)
 	{
-		//// If 80% of the pixels in the block hit something, block the computation
-		//// Use the mean of neighbour pixel as color
-		//if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
-		//{
-		//	float meanValue = 0.0f;
-		//	for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
-		//	{
-		//		for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
-		//		{
-		//			meanValue += blockResults[sharedId.x + i][sharedId.y + j];
-		//		}
-		//	}
-
-		//	meanValue /= (MASK_SIZE*MASK_SIZE);
-		//	blockResults[sharedId.x][sharedId.y] = meanValue;
-		//	hitOk = true;
-		//	break;
-		//}
+		//If 80% of the pixels in the block hit something, block the computation
+		//Use the mean of neighbour pixel as color
+		int returnFlag;
+		meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
+		if (returnFlag == 2) break;
 
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time);
 
 		// Far plane 
-		if (distanceTraveled > 100.0f)
+		if (distanceTraveled > FAR_PLANE)
 			break;
 
 		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < EPSILON)
 		{
-
-			float3 xDir{ 0.5773*EPSILON,0.0f,0.0f };
-			float3 yDir{ 0.0f,0.5773*EPSILON,0.0f };
-			float3 zDir{ 0.0f,0.0f,0.5773*EPSILON };
-
-			infoEstimatorResult x1 = distanceEstimator(iteratedPointPosition + xDir, time);
-			infoEstimatorResult x2 = distanceEstimator(iteratedPointPosition - xDir, time);
-			infoEstimatorResult y1 = distanceEstimator(iteratedPointPosition + yDir, time);
-			infoEstimatorResult y2 = distanceEstimator(iteratedPointPosition - yDir, time);
-			infoEstimatorResult z1 = distanceEstimator(iteratedPointPosition + zDir, time);
-			infoEstimatorResult z2 = distanceEstimator(iteratedPointPosition - zDir, time);
-
-			normal = normalize(float3{ x1.distance - x2.distance ,y1.distance - y2.distance,z1.distance - z2.distance });
-
-			//Faceforward
-			if (dot(-rayDirection, normal) < 0)
-				normal = -normal;
+			// Normals
+			computeNormals(iteratedPointPosition, time, normal, rayDirection);
 
 			// halfVector
 			halfVector = (-lightDirection + normal) / length(-lightDirection + normal);
-
-			// The color is the number of iteration
-			float3 color{	/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.x,
-							/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.y,
-							/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.z };
 
 			// Weight of light in the final color
 			weightLight = dot(normal, halfVector);
@@ -188,11 +147,14 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 			weightShadow = softShadow(iteratedPointPosition, -lightDirection, time);
 
 			// Save color
-			blockResults[sharedId.x][sharedId.y].x = (weightShadow) * (weightLight)* color.x;
-			blockResults[sharedId.x][sharedId.y].y = (weightShadow) * (weightLight)* color.y;
-			blockResults[sharedId.x][sharedId.y].z = (weightShadow) * (weightLight)* color.z;
+			blockResults[sharedId.x][sharedId.y].x = (weightShadow) * (weightLight)* distanceFromClosestObject.color.x;
+			blockResults[sharedId.x][sharedId.y].z = (weightShadow) * (weightLight)* distanceFromClosestObject.color.z;
+			blockResults[sharedId.x][sharedId.y].y = (weightShadow) * (weightLight)* distanceFromClosestObject.color.y;
+
+			// Keep track of how many thread have finished computing
 			atomicAdd(&globalCounter, 1);
 			hitOk = true;
+
 			break;
 		}
 
@@ -202,24 +164,23 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 			distanceTraveled = 0.0f;
 	}
 
-	long long endForTimer = clock64();
+	//long long endForTimer = clock64();
 
-	__syncthreads();
+	if (!(idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y))
+		return;
 
-	if (hitOk == true && idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y)
+	//Set final color. If there's no hit, simply make the pixel black.
+	if (hitOk == true)
 	{
-		//Set final color
 		img[x].r = blockResults[sharedId.x][sharedId.y].x /*+ (endForTimer - startForTimer) / ((float)peakClk)*/;
 		img[x].g = blockResults[sharedId.x][sharedId.y].y;
 		img[x].b = blockResults[sharedId.x][sharedId.y].z;
 	}
-
-
-	//if (idx == 0 && idy == 0)
-		//printf("Tempo di esecuzione for per il primo thread, in stream %d, %d: %fs\n", streamID.x, streamID.y, ((endForTimer - startForTimer) / ((float)peakClk * 1000)));
-
-
-
+	else {
+		img[x].r = 0;
+		img[x].g = 0;
+		img[x].b = 0;
+	}
 
 }
 
@@ -228,30 +189,83 @@ __global__ void childKernel()
 	printf("Sono un figlio.\n");
 }
 
+__device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection)
+{
+	float3 xDir{ 0.5773*EPSILON,0.0f,0.0f };
+	float3 yDir{ 0.0f,0.5773*EPSILON,0.0f };
+	float3 zDir{ 0.0f,0.0f,0.5773*EPSILON };
+
+	infoEstimatorResult x1 = distanceEstimator(iteratedPointPosition + xDir, time);
+	infoEstimatorResult x2 = distanceEstimator(iteratedPointPosition - xDir, time);
+	infoEstimatorResult y1 = distanceEstimator(iteratedPointPosition + yDir, time);
+	infoEstimatorResult y2 = distanceEstimator(iteratedPointPosition - yDir, time);
+	infoEstimatorResult z1 = distanceEstimator(iteratedPointPosition + zDir, time);
+	infoEstimatorResult z2 = distanceEstimator(iteratedPointPosition - zDir, time);
+
+	normal = normalize(float3{ x1.distance - x2.distance ,y1.distance - y2.distance,z1.distance - z2.distance });
+
+	//Faceforward
+	if (dot(-rayDirection, normal) < 0)
+		normal = -normal;
+}
+
+__device__ void meanOptimization(int globalCounter, int3  blockResults[14][14], int2 &sharedId, bool &hitOk, int &retflag)
+{
+	retflag = 1;
+	if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
+	{
+		float3 meanValue{ 0.0f,0.0f,0.0f };
+		for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
+		{
+			for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
+			{
+				meanValue.x += blockResults[sharedId.x + i][sharedId.y + j].x;
+				meanValue.y += blockResults[sharedId.x + i][sharedId.y + j].y;
+				meanValue.z += blockResults[sharedId.x + i][sharedId.y + j].z;
+			}
+		}
+
+		meanValue /= (MASK_SIZE*MASK_SIZE);
+		blockResults[sharedId.x][sharedId.y].x = meanValue.x;
+		blockResults[sharedId.x][sharedId.y].y = meanValue.y;
+		blockResults[sharedId.x][sharedId.y].z = meanValue.z;
+		hitOk = true;
+		{ retflag = 2; return; };
+	}
+}
+
 __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)
 {
 	float3 modifiedIteratedPosition = iteratedPointPosition;
-	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
-	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
-	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
+	transformationOnPoint(modifiedIteratedPosition, time);
 
-	infoEstimatorResult n1 = { 0.0f,float3{ 66.0f,134.0f,244.0f } };
-	infoEstimatorResult n2 = { 0.0f,float3{ 255.0f,0.0f,0.0f } };
-	infoEstimatorResult n3 = { 0.0f,float3{ 0.0f,255.0f,0.0f } };
+	infoEstimatorResult n1 = { 0.0f, float3{ 33, 255, 176 } };
+	infoEstimatorResult n2 = { 0.0f, float3{ 1, 45, 134 } };
+	infoEstimatorResult n3 = { 0.0f, float3{ 0.0f, 255.0f, 0.0f } };
 
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	//return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	n1.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-1.5f,0.0f }, float3{ 10.0f,0.1f,10.0f });
-	//float n2 =  mengerBox(rotY(dodecaFold(iteratedPointPosition), time), 3); //MOLTO FIGO :DDDDD
-	n2.distance = mengerBox(modifiedIteratedPosition, 3);
+	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f/**abs(sin(time / 2)) + 2.0f*/) * 2.3f;
+	n2.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-2.0f,0.0f }, float3{ 10.0f,0.1f,10.0f });
+	//n3.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,0.0f,-2.0f }, float3{ 10.0f,10.0f,0.1f });
+	//float n1 =  mengerBox(rotY(dodecaFold(modifiedIteratedPosition), time), 3); //MOLTO FIGO :DDDDD
+	//n1.distance = mengerBox(modifiedIteratedPosition, 3);
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
-	n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
-	return shapeUnion(shapeUnion(n1, n2), n3);
+	//n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
+	//return shapeUnion(shapeUnion(n1, n2), n3);
+	return shapeUnion(n1, n2);
+	//return n1;
 
+}
+
+__device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
+{
+	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
+	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 }
 
 __device__ float softShadow(float3 origin, float3 direction, float time)
