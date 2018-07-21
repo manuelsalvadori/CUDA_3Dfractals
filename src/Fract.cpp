@@ -74,7 +74,7 @@ void Fract::fillImgWindow(pixelRegionForStream * imageHost, int2 &streamID, std:
 }
 
 //Constant memory 
-__constant__ float3 view{ 0, 0, -10.0f };
+__constant__ float3 view{ 0, 0, -15.0f };
 __constant__ float3 forwardV{ 0, 0, 1 };
 __constant__ float3 upV{ 0, 1, 0 };
 __constant__ float3 rightV{ 1, 0, 0 };
@@ -126,8 +126,8 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 	infoEstimatorResult distanceFromClosestObject = { 0, float3{0.0f} };
 	for (int i = 0; i < MAX_STEPS; ++i)
 	{
-		 //If 80% of the pixels in the block hit something, block the computation
-		 //Use the mean of neighbour pixel as color
+		//If 80% of the pixels in the block hit something, block the computation
+		//Use the mean of neighbour pixel as color
 		if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
 		{
 			float3 meanValue{ 0.0f,0.0f,0.0f };
@@ -140,7 +140,7 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 					meanValue.z += blockResults[sharedId.x + i][sharedId.y + j].z;
 				}
 			}
-		
+
 			meanValue /= (MASK_SIZE*MASK_SIZE);
 			blockResults[sharedId.x][sharedId.y].x = meanValue.x;
 			blockResults[sharedId.x][sharedId.y].y = meanValue.y;
@@ -236,8 +236,8 @@ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosi
 {
 	float3 modifiedIteratedPosition = iteratedPointPosition;
 	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
-	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
-	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
+	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
+	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 
 	infoEstimatorResult n1 = { 0.0f, float3{ 66.0f, 134.0f, 244.0f } };
 	infoEstimatorResult n2 = { 0.0f, float3{ 255.0f, 0.0f, 0.0f } };
@@ -246,7 +246,7 @@ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosi
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f*abs(sin(time))+2.0f) * 2.3f;
+	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f*abs(sin(time / 2)) + 2.0f) * 2.3f;
 	n2.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-4.0f,0.0f }, float3{ 10.0f,0.1f,10.0f });
 	//n3.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,0.0f,-2.0f }, float3{ 10.0f,10.0f,0.1f });
 	//float n1 =  mengerBox(rotY(dodecaFold(modifiedIteratedPosition), time), 3); //MOLTO FIGO :DDDDD
