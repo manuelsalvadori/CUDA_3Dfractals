@@ -2,8 +2,8 @@
 
 int main()
 {
-	Application app = Application();
-	app.startApplication();
+	std::unique_ptr<Application> app(new Application());
+	app->startApplication();
 
 	return 0;
 }

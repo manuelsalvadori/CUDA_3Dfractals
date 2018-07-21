@@ -123,34 +123,38 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 	long long int startForTimer = clock64();
 
 	float distanceTraveled = 0.0;
-	infoEstimatorResult distanceFromClosestObject = { 0,float3{0.0f} };
+	infoEstimatorResult distanceFromClosestObject = { 0, float3{0.0f} };
 	for (int i = 0; i < MAX_STEPS; ++i)
 	{
-		//// If 80% of the pixels in the block hit something, block the computation
-		//// Use the mean of neighbour pixel as color
-		//if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
-		//{
-		//	float meanValue = 0.0f;
-		//	for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
-		//	{
-		//		for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
-		//		{
-		//			meanValue += blockResults[sharedId.x + i][sharedId.y + j];
-		//		}
-		//	}
-
-		//	meanValue /= (MASK_SIZE*MASK_SIZE);
-		//	blockResults[sharedId.x][sharedId.y] = meanValue;
-		//	hitOk = true;
-		//	break;
-		//}
+		 //If 80% of the pixels in the block hit something, block the computation
+		 //Use the mean of neighbour pixel as color
+		if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
+		{
+			float3 meanValue{ 0.0f,0.0f,0.0f };
+			for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
+			{
+				for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
+				{
+					meanValue.x += blockResults[sharedId.x + i][sharedId.y + j].x;
+					meanValue.y += blockResults[sharedId.x + i][sharedId.y + j].y;
+					meanValue.z += blockResults[sharedId.x + i][sharedId.y + j].z;
+				}
+			}
+		
+			meanValue /= (MASK_SIZE*MASK_SIZE);
+			blockResults[sharedId.x][sharedId.y].x = meanValue.x;
+			blockResults[sharedId.x][sharedId.y].y = meanValue.y;
+			blockResults[sharedId.x][sharedId.y].z = meanValue.z;
+			hitOk = true;
+			break;
+		}
 
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time);
 
 		// Far plane 
-		if (distanceTraveled > 100.0f)
+		if (distanceTraveled > FAR_PLANE)
 			break;
 
 		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < EPSILON)
@@ -178,8 +182,8 @@ __global__ void rayMarching(const float3 &view1, pixel* img, float time, int2 st
 
 			// The color is the number of iteration
 			float3 color{	/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.x,
-							/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.y,
-							/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.z };
+				/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.y,
+				/*((i / (float)MAX_STEPS) * */ distanceFromClosestObject.color.z };
 
 			// Weight of light in the final color
 			weightLight = dot(normal, halfVector);
@@ -231,26 +235,29 @@ __global__ void childKernel()
 __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)
 {
 	float3 modifiedIteratedPosition = iteratedPointPosition;
-	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
+	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 
-	infoEstimatorResult n1 = { 0.0f,float3{ 66.0f,134.0f,244.0f } };
-	infoEstimatorResult n2 = { 0.0f,float3{ 255.0f,0.0f,0.0f } };
-	infoEstimatorResult n3 = { 0.0f,float3{ 0.0f,255.0f,0.0f } };
+	infoEstimatorResult n1 = { 0.0f, float3{ 66.0f, 134.0f, 244.0f } };
+	infoEstimatorResult n2 = { 0.0f, float3{ 255.0f, 0.0f, 0.0f } };
+	infoEstimatorResult n3 = { 0.0f, float3{ 0.0f, 255.0f, 0.0f } };
 
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	//return mandelbulb(iteratedPointPosition / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	n1.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-1.5f,0.0f }, float3{ 10.0f,0.1f,10.0f });
-	//float n2 =  mengerBox(rotY(dodecaFold(iteratedPointPosition), time), 3); //MOLTO FIGO :DDDDD
-	n2.distance = mengerBox(modifiedIteratedPosition, 3);
+	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f*abs(sin(time))+2.0f) * 2.3f;
+	n2.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-4.0f,0.0f }, float3{ 10.0f,0.1f,10.0f });
+	//n3.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,0.0f,-2.0f }, float3{ 10.0f,10.0f,0.1f });
+	//float n1 =  mengerBox(rotY(dodecaFold(modifiedIteratedPosition), time), 3); //MOLTO FIGO :DDDDD
+	//n1.distance = mengerBox(modifiedIteratedPosition, 3);
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
 	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
-	n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
-	return shapeUnion(shapeUnion(n1, n2), n3);
+	//n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
+	//return shapeUnion(shapeUnion(n1, n2), n3);
+	return shapeUnion(n1, n2);
+	//return n1;
 
 }
 
