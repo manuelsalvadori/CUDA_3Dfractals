@@ -48,15 +48,22 @@ void Application::runApplication() {
 	// Loop
 	while (window.isOpen())
 	{
+		// Time before frame computation
+		std::chrono::high_resolution_clock::time_point begin = std::chrono::high_resolution_clock::now();
+
 		// Compute frame
 		std::shared_ptr<sf::Image> frame;
-		clock_t begin = clock();
 		computeFrame(frameCounter, start, window, background, frame, fract, view, imgDevice, imageHost, stream, peakClk, texture, sprite, stop);
-		clock_t end = clock();
-		totalEnlapsedTime = (end - begin) / CLOCKS_PER_SEC;
+
+		// Time after frame computation
+		std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 
 		// Measure enlapsed time
-		//measureEnlapsedTime(start, stop);
+		if (PARALLEL)
+			measureEnlapsedTime(start, stop);
+		else
+			totalEnlapsedTime = (double)std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()/1000;
+
 
 		// Save frame 
 		saveFrame(width, height, frame, frameCounter);
@@ -96,18 +103,20 @@ void Application::logPerformanceInfo(int frameNumber)
 {
 	ofstream benchmarksLog;
 	benchmarksLog.open("benchmarks/benchmarks.txt", ios::app);
+	benchmarksLog << ("Versione parallela: " + std::to_string(PARALLEL) + "\n");
 	benchmarksLog << ("Frame renderizzati: " + std::to_string(frameNumber) + "\n");
 	benchmarksLog << ("Dimensione frame: " + std::to_string((int)WIDTH) + "x" + std::to_string((int)HEIGHT) + "\n");
-	benchmarksLog << ("Modello 1: MandelBulb\n");
-	benchmarksLog << ("Modello 2: Cubo\n");
-	benchmarksLog << ("Dimensione blocco: " + std::to_string((int)BLOCK_DIM_X) + "x" + std::to_string((int)BLOCK_DIM_Y) + "\n");
-	benchmarksLog << ("Dimensione griglia: " + std::to_string((int)(WIDTH / (BLOCK_DIM_X*sqrt(NUM_STREAMS)))) + "x" + std::to_string((int)(HEIGHT / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)))) + "\n");
-	benchmarksLog << ("Numero stream: " + std::to_string((int)NUM_STREAMS) + "\n");
+	benchmarksLog << ("Modello: MandelBulb\n");
+	if (PARALLEL) {
+		benchmarksLog << ("Dimensione blocco: " + std::to_string((int)BLOCK_DIM_X) + "x" + std::to_string((int)BLOCK_DIM_Y) + "\n");
+		benchmarksLog << ("Dimensione griglia: " + std::to_string((int)(WIDTH / (BLOCK_DIM_X*sqrt(NUM_STREAMS)))) + "x" + std::to_string((int)(HEIGHT / (BLOCK_DIM_Y*sqrt(NUM_STREAMS)))) + "\n");
+		benchmarksLog << ("Numero stream: " + std::to_string((int)NUM_STREAMS) + "\n");
+		benchmarksLog << ("Stream non bloccanti: true\n");
+		benchmarksLog << ("Trasferimenti asincroni: true\n");
+		benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
+	}
 	benchmarksLog << ("Numero iterazioni max DE: " + std::to_string((int)MAX_STEPS) + "\n");
 	benchmarksLog << ("Valore epsilon: " + std::to_string(EPSILON) + "\n");
-	benchmarksLog << ("Stream non bloccanti: true\n");
-	benchmarksLog << ("Trasferimenti asincroni: true\n");
-	benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
 	benchmarksLog << ("Tempo di calcolo totale: " + std::to_string(totalEnlapsedTime) + "s\n");
 	benchmarksLog << ("Tempo di calcolo medio per frame: " + std::to_string(totalEnlapsedTime / MAX_NUMBER_OF_FRAMES) + "s\n");
 	benchmarksLog << ("--------------\n");

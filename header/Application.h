@@ -11,7 +11,7 @@
 // Standard
 #include <iostream>
 #include <fstream>
-#include <ctime>
+#include <chrono>
 
 // SFML
 #include <SFML/Graphics/Export.hpp>
@@ -38,7 +38,7 @@ public:
 	void runApplication();
 
 private:
-	float totalEnlapsedTime = 0.0f;
+	double totalEnlapsedTime = 0.0f;
 	bool isStreamNotBlocking = true;
 
 	void measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop);
