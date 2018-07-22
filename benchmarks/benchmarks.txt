@@ -85,11 +85,143 @@ Tempo di calcolo medio per frame: 5.495600s
 --------------
 Versione parallela: 1
 Frame renderizzati: 1
-Dimensione frame: 2048x2048
+Dimensione frame: 256x256
+Modello: MandelBulb
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 1.978888s
+Tempo di calcolo medio per frame: 1.978888s
+--------------
+Versione parallela: 0
+Frame renderizzati: 1
+Dimensione frame: 256x256
+Modello: MandelBulb
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 8.224000s
+Tempo di calcolo medio per frame: 8.224000s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 256x256
+Modello: MandelBulb
+Dimensione blocco: 8x8
+Dimensione griglia: 16x16
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 1.991161s
+Tempo di calcolo medio per frame: 1.991161s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 256x256
 Modello: MandelBulb
 Dimensione blocco: 8x8
 Dimensione griglia: 32x32
-Numero stream: 64
+Numero stream: 1
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 1.984602s
+Tempo di calcolo medio per frame: 1.984602s
+--------------
+Versione parallela: 0
+Frame renderizzati: 1
+Dimensione frame: 256x256
+Modello: MandelBulb
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 8.376000s
+Tempo di calcolo medio per frame: 8.376000s
+--------------
+Versione parallela: 0
+Frame renderizzati: 1
+Dimensione frame: 1024x1024
+Modello: MandelBulb
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 133.417000s
+Tempo di calcolo medio per frame: 133.417000s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 8x8
+Dimensione griglia: 32x32
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 5.954438s
+Tempo di calcolo medio per frame: 5.954438s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 16x16
+Dimensione griglia: 16x16
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 6.605169s
+Tempo di calcolo medio per frame: 6.605169s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 32x32
+Dimensione griglia: 8x8
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 9.705152s
+Tempo di calcolo medio per frame: 9.705152s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 4x4
+Dimensione griglia: 64x64
+Numero stream: 4
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 7.936443s
+Tempo di calcolo medio per frame: 7.936443s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 2x2
+Dimensione griglia: 128x128
+Numero stream: 4
 Stream non bloccanti: true
 Trasferimenti asincroni: true
 Dimensioni maschera filtro: 7
@@ -97,4 +229,34 @@ Numero iterazioni max DE: 128
 Valore epsilon: 0.010000
 Tempo di calcolo totale: 0.000000s
 Tempo di calcolo medio per frame: 0.000000s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 2x2
+Dimensione griglia: 256x256
+Numero stream: 1
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 0.000000s
+Tempo di calcolo medio per frame: 0.000000s
+--------------
+Versione parallela: 1
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Dimensione blocco: 8x8
+Dimensione griglia: 64x64
+Numero stream: 1
+Stream non bloccanti: true
+Trasferimenti asincroni: true
+Dimensioni maschera filtro: 7
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 5.477437s
+Tempo di calcolo medio per frame: 5.477437s
 --------------
