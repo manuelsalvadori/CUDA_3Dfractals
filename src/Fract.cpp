@@ -341,13 +341,12 @@ inline __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &i
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f/**abs(sin(time / 2)) + 2.0f*/) * 2.3f;
+	//n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f/**abs(sin(time / 2)) + 2.0f*/) * 2.3f;
 	n2.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-2.0f,0.0f }, float3{ 10.0f,0.1f,10.0f });
 	//n3.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,0.0f,-2.0f }, float3{ 10.0f,10.0f,0.1f });
 	//float n1 =  mengerBox(rotY(dodecaFold(modifiedIteratedPosition), time), 3); //MOLTO FIGO :DDDDD
-	//n1.distance = mengerBox(modifiedIteratedPosition, 3);
+	n1.distance = mengerBox(modifiedIteratedPosition, 3);
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
 	//n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
 	//return shapeUnion(shapeUnion(n1, n2), n3);
