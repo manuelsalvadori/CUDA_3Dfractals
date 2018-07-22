@@ -284,7 +284,7 @@ __global__ void childKernel()
 	printf("Sono un figlio.\n");
 }
 
-__host__ __device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection)
+inline __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection)
 {
 	float3 xDir{ 0.5773*EPSILON,0.0f,0.0f };
 	float3 yDir{ 0.0f,0.5773*EPSILON,0.0f };
@@ -304,7 +304,7 @@ __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, flo
 		normal = -normal;
 }
 
-__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag)
+inline __host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag)
 {
 	retflag = 1;
 	if (globalCounter > MASK_PERCENTAGE * BLOCK_DIM_X * BLOCK_DIM_Y)
@@ -329,7 +329,7 @@ __host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[
 	}
 }
 
-__host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)
+inline __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)
 {
 	float3 modifiedIteratedPosition = iteratedPointPosition;
 	transformationOnPoint(modifiedIteratedPosition, time);
@@ -356,14 +356,14 @@ __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iterated
 
 }
 
-__host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
+inline __host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
 {
 	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 }
 
-__host__ __device__ float softShadow(float3 origin, float3 direction, float time)
+inline __host__ __device__ float softShadow(float3 origin, float3 direction, float time)
 {
 	float res = 1.0;
 	float mint = 0.02f;
@@ -378,7 +378,7 @@ __host__ __device__ float softShadow(float3 origin, float3 direction, float time
 	return clamp(res, 0.0, 1.0);
 }
 
-__host__ __device__ float hardShadow(float3 origin, float3 direction, float time)
+inline __host__ __device__ float hardShadow(float3 origin, float3 direction, float time)
 {
 	float res = 1.0;
 	float mint = 0.02f;
