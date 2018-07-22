@@ -1,135 +1,24 @@
-Frame renderizzati: 720
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 2363.222900s
-Tempo di calcolo medio per frame: 3.282254s
---------------
-Frame renderizzati: 360
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 1186.640625s
-Tempo di calcolo medio per frame: 3.296224s
---------------
+Versione parallela: 1
 Frame renderizzati: 1
 Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 3.158135s
-Tempo di calcolo medio per frame: 3.158135s
---------------
-Frame renderizzati: 1
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 5.594033s
-Tempo di calcolo medio per frame: 5.594033s
---------------
-Frame renderizzati: 1
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 5.595381s
-Tempo di calcolo medio per frame: 5.595381s
---------------
-Frame renderizzati: 1
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 5.595585s
-Tempo di calcolo medio per frame: 5.595585s
---------------
-Frame renderizzati: 1
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 5.609040s
-Tempo di calcolo medio per frame: 5.609040s
---------------
-Frame renderizzati: 360
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
-Dimensione blocco: 8x8
-Dimensione griglia: 16x16
-Numero stream: 16
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
-Stream non bloccanti: true
-Trasferimenti asincroni: true
-Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 2092.943604s
-Tempo di calcolo medio per frame: 5.813732s
---------------
-Frame renderizzati: 1
-Dimensione frame: 512x512
-Modello 1: MandelBulb
-Modello 2: Cubo
+Modello: MandelBulb
 Dimensione blocco: 8x8
 Dimensione griglia: 64x64
 Numero stream: 1
-Numero iterazioni max DE: 128
-Valore epsilon: 0.010000
 Stream non bloccanti: true
 Trasferimenti asincroni: true
 Dimensioni maschera filtro: 7
-Tempo di calcolo totale: 37.000000s
-Tempo di calcolo medio per frame: 37.000000s
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 5.496969s
+Tempo di calcolo medio per frame: 5.496969s
+--------------
+Versione parallela: 0
+Frame renderizzati: 1
+Dimensione frame: 512x512
+Modello: MandelBulb
+Numero iterazioni max DE: 128
+Valore epsilon: 0.010000
+Tempo di calcolo totale: 35.637000s
+Tempo di calcolo medio per frame: 35.637000s
 --------------
