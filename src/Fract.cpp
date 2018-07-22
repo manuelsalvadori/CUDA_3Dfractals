@@ -35,31 +35,35 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	// Start each kernel on a separate stream
 	int2 streamID{ 0,0 };
 
-#if PARALLEL 
 	//Parallel version
-	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
-		streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
-		streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
-		pixel* streamRegionHost = imageHost[streamNumber];
-		pixel* streamRegionDevice = imageDevice[streamNumber];
-		rayMarching << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID, peakClk);
-		CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
+	if (PARALLEL)
+	{
+		
+		for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
+			streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
+			streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
+			pixel* streamRegionHost = imageHost[streamNumber];
+			pixel* streamRegionDevice = imageDevice[streamNumber];
+			rayMarching << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID, peakClk);
+			CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
+		}
+
+		CHECK(cudaDeviceSynchronize());
+		printf("Tutti gli stream sono arrivati alla fine.\n");
 	}
-
-	CHECK(cudaDeviceSynchronize());
-
-	printf("Tutti gli stream sono arrivati alla fine.\n");
-
-#else
-	int2 coordinates{ 0,0 };
-	for (int i = 0; i < WIDTH; i++) {
-		for (int j = 0; j < HEIGHT; j++) {
-			coordinates.x = i;
-			coordinates.y = j;
-			rayMarchingSequential(*imageHost, coordinates, rotation);
+	// Sequencial version
+	else
+	{
+		int2 coordinates{ 0,0 };
+		for (int i = 0; i < WIDTH; i++) {
+			for (int j = 0; j < HEIGHT; j++) {
+				coordinates.x = i;
+				coordinates.y = j;
+				rayMarchingSequential(*imageHost, coordinates, rotation);
+			}
 		}
 	}
-#endif
+
 
 	// Fill the window with img
 	fillImgWindow(imageHost, streamID, fract_ptr);
@@ -209,9 +213,11 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 	{
 		//If 80% of the pixels in the block hit something, block the computation
 		//Use the mean of neighbour pixel as color
-		int returnFlag;
-		meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
-		if (returnFlag == 2) break;
+		if (USE_MASK) {
+			int returnFlag;
+			meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
+			if (returnFlag == 2) break;
+		}
 
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
@@ -298,10 +304,10 @@ __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, flo
 		normal = -normal;
 }
 
-__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[14][14], int2 &sharedId, bool &hitOk, int &retflag)
+__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag)
 {
 	retflag = 1;
-	if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
+	if (globalCounter > MASK_PERCENTAGE * BLOCK_DIM_X * BLOCK_DIM_Y)
 	{
 		float3 meanValue{ 0.0f,0.0f,0.0f };
 		for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)

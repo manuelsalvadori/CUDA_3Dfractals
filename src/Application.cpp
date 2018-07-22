@@ -29,6 +29,10 @@ void Application::runApplication() {
 	CHECK(cudaEventCreate(&start));
 	CHECK(cudaEventCreate(&stop));
 
+	// Timers for computing sequential version
+	std::chrono::high_resolution_clock::time_point begin;
+	std::chrono::high_resolution_clock::time_point end;
+
 	// Host pinned memory allocation
 	pixelRegionForStream* imageHost[NUM_STREAMS];
 	// Device memory allocation
@@ -49,21 +53,25 @@ void Application::runApplication() {
 	while (window.isOpen())
 	{
 		// Time before frame computation
-		std::chrono::high_resolution_clock::time_point begin = std::chrono::high_resolution_clock::now();
+		printf("Frame Numero %d\n", frameCounter);
+		if (PARALLEL)
+			CHECK(cudaEventRecord(start))
+		else
+			begin = std::chrono::high_resolution_clock::now();
+
 
 		// Compute frame
 		std::shared_ptr<sf::Image> frame;
-		computeFrame(frameCounter, start, window, background, frame, fract, view, imgDevice, imageHost, stream, peakClk, texture, sprite, stop);
+		computeFrame(frameCounter, window, background, frame, fract, view, imgDevice, imageHost, stream, peakClk, texture, sprite);
 
 		// Time after frame computation
-		std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+		if (PARALLEL)
+			CHECK(cudaEventRecord(stop))
+		else
+			end = std::chrono::high_resolution_clock::now();
 
 		// Measure enlapsed time
-		if (PARALLEL)
-			measureEnlapsedTime(start, stop);
-		else
-			totalEnlapsedTime = (double)std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()/1000;
-
+		measureEnlapsedTime(start, stop, begin, end);
 
 		// Save frame 
 		saveFrame(width, height, frame, frameCounter);
@@ -113,7 +121,9 @@ void Application::logPerformanceInfo(int frameNumber)
 		benchmarksLog << ("Numero stream: " + std::to_string((int)NUM_STREAMS) + "\n");
 		benchmarksLog << ("Stream non bloccanti: true\n");
 		benchmarksLog << ("Trasferimenti asincroni: true\n");
-		benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
+		benchmarksLog << ("Maschera shared memory: " + std::to_string(USE_MASK) + "\n");
+		if (USE_MASK)
+			benchmarksLog << ("Dimensioni maschera filtro: " + std::to_string((int)MASK_SIZE) + "\n");
 	}
 	benchmarksLog << ("Numero iterazioni max DE: " + std::to_string((int)MAX_STEPS) + "\n");
 	benchmarksLog << ("Valore epsilon: " + std::to_string(EPSILON) + "\n");
@@ -149,26 +159,31 @@ void Application::saveFrame(int width, int height, std::shared_ptr<sf::Image> &f
 	bitmap.write("img/Frame_" + std::to_string(frameCounter) + ".bmp");
 }
 
-void Application::measureEnlapsedTime(const cudaEvent_t &start, const cudaEvent_t &stop)
+void Application::measureEnlapsedTime(const cudaEvent_t & startParallel, const cudaEvent_t & stopParallel, std::chrono::high_resolution_clock::time_point startSequential, std::chrono::high_resolution_clock::time_point stopSequential)
 {
-	CHECK(cudaEventSynchronize(start));
-	CHECK(cudaEventSynchronize(stop));
-	float milliseconds = 0;
-	CHECK(cudaEventElapsedTime(&milliseconds, start, stop));
-	float seconds = (milliseconds / 1000);
+	double seconds = 0;
+	if (PARALLEL)
+	{
+		CHECK(cudaEventSynchronize(startParallel));
+		CHECK(cudaEventSynchronize(stopParallel));
+		float milliseconds = 0;
+		CHECK(cudaEventElapsedTime(&milliseconds, startParallel, stopParallel));
+		seconds = (milliseconds / 1000);
+	}
+	else
+	{
+		seconds = (double)std::chrono::duration_cast<std::chrono::milliseconds>(stopSequential - startSequential).count() / 1000;
+	};
 	printf("Tempo calcolo frame: %fs\n", seconds);
 	printf("--------------\n");
 	totalEnlapsedTime += seconds;
 }
 
-void Application::computeFrame(int frameCounter, const cudaEvent_t &start, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[16], pixelRegionForStream * imageHost[16], cudaStream_t  stream[16], int peakClk, sf::Texture &texture, sf::Sprite &sprite, const cudaEvent_t &stop)
+void Application::computeFrame(int frameCounter, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[NUM_STREAMS], pixelRegionForStream * imageHost[NUM_STREAMS], cudaStream_t  stream[NUM_STREAMS], int peakClk, sf::Texture &texture, sf::Sprite &sprite)
 {
-	printf("Frame Numero %d\n", frameCounter);
-	CHECK(cudaEventRecord(start));
 	window.clear(background);
 	frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
 	texture.loadFromImage(*frame);
 	sprite.setTexture(texture, true);
 	window.draw(sprite);
-	CHECK(cudaEventRecord(stop));
 }

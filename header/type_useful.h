@@ -5,20 +5,22 @@
 #include <cutil_math.h>
 
 // Defines for constant values
-#define WIDTH					1024.0
-#define HEIGHT					1024.0
+#define PARALLEL				true
+#define WIDTH					512.0
+#define HEIGHT					512.0
 #define MAX_STEPS				128
 #define EPSILON					0.01f
-#define BLOCK_DIM_X				8
-#define BLOCK_DIM_Y				8
-#define NUM_STREAMS				4
-#define PIXEL_PER_STREAM_X		(int)(WIDTH/2)
-#define PIXEL_PER_STREAM_Y		(int)(HEIGHT/2)
-#define PIXEL_PER_STREAM		(int)((WIDTH/2)*(HEIGHT/2))
+#define BLOCK_DIM_X				32
+#define BLOCK_DIM_Y				32
+#define NUM_STREAMS				1
+#define PIXEL_PER_STREAM_X		(int)(WIDTH /1)
+#define PIXEL_PER_STREAM_Y		(int)(HEIGHT/1)
+#define PIXEL_PER_STREAM		(int)((WIDTH/1)*(HEIGHT/1))
+#define USE_MASK				true
 #define MASK_SIZE				7
+#define MASK_PERCENTAGE			0.5f
 #define FAR_PLANE				100.0f
 #define MAX_NUMBER_OF_FRAMES	1
-#define PARALLEL				true
 
 // Color of a pixel
 struct pixel
