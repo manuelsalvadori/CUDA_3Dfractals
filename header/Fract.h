@@ -55,7 +55,7 @@ __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iterated
 __host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time);
 __host__ __device__ float softShadow(float3 origin, float3 direction, float time);
 __host__ __device__ float hardShadow(float3 origin, float3 direction, float time);
-__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag);
+__host__ __device__ void sharpeningFilter(int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId);
 __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection);
 
 #endif /* FRACT_H_ */

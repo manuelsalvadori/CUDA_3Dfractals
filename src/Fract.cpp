@@ -38,7 +38,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	//Parallel version
 	if (PARALLEL)
 	{
-		
+
 		for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
 			streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
 			streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
@@ -51,7 +51,7 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 		CHECK(cudaDeviceSynchronize());
 		printf("Tutti gli stream sono arrivati alla fine.\n");
 	}
-	// Sequencial version
+	// Sequential version
 	else
 	{
 		int2 coordinates{ 0,0 };
@@ -211,14 +211,6 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 	infoEstimatorResult distanceFromClosestObject = { 0, float3{0.0f} };
 	for (int i = 0; i < MAX_STEPS; ++i)
 	{
-		//If 80% of the pixels in the block hit something, block the computation
-		//Use the mean of neighbour pixel as color
-		if (USE_MASK) {
-			int returnFlag;
-			meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
-			if (returnFlag == 2) break;
-		}
-
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
 		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time);
@@ -264,6 +256,12 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 	if (!(idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y))
 		return;
 
+	// Use sharpening filter
+	if (USE_MASK) {
+		__syncthreads();
+		sharpeningFilter(blockResults, sharedId);
+	}
+
 	//Set final color. If there's no hit, simply make the pixel black.
 	if (hitOk == true)
 	{
@@ -304,29 +302,32 @@ __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, flo
 		normal = -normal;
 }
 
-__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag)
+__host__ __device__ void sharpeningFilter(int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId)
 {
-	retflag = 1;
-	if (globalCounter > MASK_PERCENTAGE * BLOCK_DIM_X * BLOCK_DIM_Y)
+	// Skip pixels on the border
+	blockResults[sharedId.x][sharedId.y].x = 255;
+	blockResults[sharedId.x][sharedId.y].x = 0;
+	blockResults[sharedId.x][sharedId.y].x = 0;
+	return;
+
+
+	float3 meanValue{ 0.0f,0.0f,0.0f };
+	for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
 	{
-		float3 meanValue{ 0.0f,0.0f,0.0f };
-		for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
+		for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
 		{
-			for (int j = -(MASK_SIZE / 2); j <= (MASK_SIZE / 2); j++)
-			{
+			if (i != 0 && j != 0) {
 				meanValue.x += blockResults[sharedId.x + i][sharedId.y + j].x;
 				meanValue.y += blockResults[sharedId.x + i][sharedId.y + j].y;
 				meanValue.z += blockResults[sharedId.x + i][sharedId.y + j].z;
 			}
 		}
-
-		meanValue /= (MASK_SIZE*MASK_SIZE);
-		blockResults[sharedId.x][sharedId.y].x = meanValue.x;
-		blockResults[sharedId.x][sharedId.y].y = meanValue.y;
-		blockResults[sharedId.x][sharedId.y].z = meanValue.z;
-		hitOk = true;
-		{ retflag = 2; return; };
 	}
+
+	meanValue /= (MASK_SIZE*MASK_SIZE);
+	blockResults[sharedId.x][sharedId.y].x = meanValue.x;
+	blockResults[sharedId.x][sharedId.y].y = meanValue.y;
+	blockResults[sharedId.x][sharedId.y].z = meanValue.z;
 }
 
 __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)

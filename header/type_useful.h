@@ -17,8 +17,8 @@
 #define PIXEL_PER_STREAM_Y		(int)(HEIGHT/1)
 #define PIXEL_PER_STREAM		(int)((WIDTH/1)*(HEIGHT/1))
 #define USE_MASK				true
-#define MASK_SIZE				7
-#define MASK_PERCENTAGE			0.5f
+#define MASK_SIZE				3
+#define MASK_PERCENTAGE			0.8f
 #define FAR_PLANE				100.0f
 #define MAX_NUMBER_OF_FRAMES	1
 
