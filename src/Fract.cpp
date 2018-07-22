@@ -112,7 +112,7 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 	float3 point = rightV * u + upV * v;;
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, 0);
+	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, time);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -358,8 +358,8 @@ __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iterated
 
 __host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
 {
-	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
-	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
+	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 }
 
