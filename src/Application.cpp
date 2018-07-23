@@ -46,9 +46,6 @@ void Application::runApplication() {
 		CHECK(cudaStreamCreateWithFlags(&stream[i], cudaStreamNonBlocking));
 	}
 
-	int frameCounter = 0;
-
-
 	// Loop
 	while (window.isOpen())
 	{
@@ -182,7 +179,7 @@ void Application::measureEnlapsedTime(const cudaEvent_t & startParallel, const c
 void Application::computeFrame(int frameCounter, sf::RenderWindow &window, sf::Color &background, std::shared_ptr<sf::Image> &frame, Fract &fract, float3 &view, pixelRegionForStream * imgDevice[NUM_STREAMS], pixelRegionForStream * imageHost[NUM_STREAMS], cudaStream_t  stream[NUM_STREAMS], int peakClk, sf::Texture &texture, sf::Sprite &sprite)
 {
 	window.clear(background);
-	frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk);
+	frame = fract.generateFractal(view, imgDevice[0], imageHost[0], stream, peakClk, frameCounter);
 	texture.loadFromImage(*frame);
 	sprite.setTexture(texture, true);
 	window.draw(sprite);
