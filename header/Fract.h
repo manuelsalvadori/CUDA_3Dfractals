@@ -37,7 +37,7 @@ public:
 private:
 	int width;
 	int height;
-	float rotation{ 0 };
+	float rotation{ 0.5f };
 	void fillImgWindow(pixelRegionForStream * imageHost, int2 &streamID, std::unique_ptr<sf::Image> &fract_ptr);
 	void rayMarchingSequential(pixel* img, int2 coordinates, float time);
 

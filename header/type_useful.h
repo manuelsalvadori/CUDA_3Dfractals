@@ -20,7 +20,7 @@
 #define MASK_SIZE				7
 #define MASK_PERCENTAGE			0.5f
 #define FAR_PLANE				100.0f
-#define MAX_NUMBER_OF_FRAMES	720
+#define MAX_NUMBER_OF_FRAMES	360
 
 // Color of a pixel
 struct pixel
