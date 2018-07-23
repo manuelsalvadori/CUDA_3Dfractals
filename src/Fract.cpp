@@ -191,8 +191,8 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk, 
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * PIXEL_PER_STREAM_X + idx;
 
-	float u = (5 /*/ (2 * time)*/) * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) - (2.5f /*/ (2 * time)*/);
-	float v = (5 /*/ (2 * time)*/) * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - (2.5f /*/ (2 * time)*/);
+	float u = (5 / (2 * time)) * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) -  (2.5f / (2 * time));
+	float v = (5 / (2 * time)) * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - (2.5f / (2 * time));
 
 	float3 point = rightV * u + upV * v;
 	float3 rayDirection = normalize(point - rayOrigin);
@@ -229,7 +229,7 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk, 
 		if (distanceTraveled > FAR_PLANE)
 			break;
 
-		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < (EPSILON/*/ (2 * time)*/))
+		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < (EPSILON/ (2 * time)))
 		{
 			// Normals
 			computeNormals(iteratedPointPosition, time, normal, rayDirection, frameNumber);
@@ -342,12 +342,9 @@ inline __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &i
 	infoEstimatorResult n2 = { 0.0f, float3{ 1, 45, 134 } };
 	infoEstimatorResult n3 = { 0.0f, float3{ 0.0f, 255.0f, 0.0f } };
 
-	int iterations =	(frameNumber < ((1 * MAX_NUMBER_OF_FRAMES) / 7)) ? 0 : 1;
-	iterations =		(frameNumber < ((2 * MAX_NUMBER_OF_FRAMES) / 7)) ? iterations : 2;
-	iterations =		(frameNumber < ((3 * MAX_NUMBER_OF_FRAMES) / 7)) ? iterations : 3;
-	iterations =		(frameNumber < ((4 * MAX_NUMBER_OF_FRAMES) / 7)) ? iterations : 4;
-	iterations =		(frameNumber < ((5 * MAX_NUMBER_OF_FRAMES) / 7)) ? iterations : 5;
-	iterations =		(frameNumber < ((6 * MAX_NUMBER_OF_FRAMES) / 7)) ? iterations : 6;
+	int iterations =	(frameNumber < ((1 * MAX_NUMBER_OF_FRAMES) / 4)) ? 2 : 3;
+	iterations =		(frameNumber < ((2 * MAX_NUMBER_OF_FRAMES) / 4)) ? iterations : 4;
+	iterations =		(frameNumber < ((3 * MAX_NUMBER_OF_FRAMES) / 4)) ? iterations : 5;
 
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
@@ -370,7 +367,7 @@ inline __host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPo
 {
 	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
 	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
-	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 }
 
 inline __host__ __device__ float softShadow(float3 origin, float3 direction, float time, int frameNumber)
@@ -383,7 +380,7 @@ inline __host__ __device__ float softShadow(float3 origin, float3 direction, flo
 		float h = distanceEstimator(origin + direction * mint, time, frameNumber).distance;
 		res = min(res, 16.0*h / mint);
 		mint += clamp(h, 0.02, 0.10);
-		if (res<0.005 || mint>maxt) break;
+		if (res<(EPSILON/(2*time)) || mint>maxt) break;
 	}
 	return clamp(res, 0.0, 1.0);
 }
