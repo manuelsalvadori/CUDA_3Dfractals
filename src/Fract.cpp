@@ -21,7 +21,7 @@ int Fract::getHeight() const
 	return height;
 }
 
-std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk)
+std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegionForStream* imageDevice, pixelRegionForStream * imageHost, cudaStream_t* streams, int peakClk, int frameNumber)
 {
 
 	// Craete img
@@ -35,31 +35,35 @@ std::unique_ptr<sf::Image> Fract::generateFractal(const float3 &view, pixelRegio
 	// Start each kernel on a separate stream
 	int2 streamID{ 0,0 };
 
-#if PARALLEL 
 	//Parallel version
-	for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
-		streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
-		streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
-		pixel* streamRegionHost = imageHost[streamNumber];
-		pixel* streamRegionDevice = imageDevice[streamNumber];
-		rayMarching << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID, peakClk);
-		CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]));
+	if (PARALLEL)
+	{
+
+		for (int streamNumber = 0; streamNumber < NUM_STREAMS; streamNumber++) {
+			streamID.x = streamNumber / (width / (PIXEL_PER_STREAM_X));
+			streamID.y = streamNumber % (width / (PIXEL_PER_STREAM_Y));
+			pixel* streamRegionHost = imageHost[streamNumber];
+			pixel* streamRegionDevice = imageDevice[streamNumber];
+			rayMarching << <dimGrid, dimBlock, 0, streams[streamNumber] >> > (streamRegionDevice, rotation, streamID, peakClk, frameNumber);
+			CHECK(cudaMemcpyAsync(streamRegionHost, streamRegionDevice, sizeof(pixelRegionForStream), cudaMemcpyDeviceToHost, streams[streamNumber]), frameNumber);
+		}
+
+		CHECK(cudaDeviceSynchronize());
+		printf("Tutti gli stream sono arrivati alla fine.\n");
 	}
-
-	CHECK(cudaDeviceSynchronize());
-
-	printf("Tutti gli stream sono arrivati alla fine.\n");
-
-#else
-	int2 coordinates{ 0,0 };
-	for (int i = 0; i < WIDTH; i++) {
-		for (int j = 0; j < HEIGHT; j++) {
-			coordinates.x = i;
-			coordinates.y = j;
-			rayMarchingSequential(*imageHost, coordinates, rotation);
+	// Sequencial version
+	else
+	{
+		int2 coordinates{ 0,0 };
+		for (int i = 0; i < WIDTH; i++) {
+			for (int j = 0; j < HEIGHT; j++) {
+				coordinates.x = i;
+				coordinates.y = j;
+				rayMarchingSequential(*imageHost, coordinates, rotation, frameNumber);
+			}
 		}
 	}
-#endif
+
 
 	// Fill the window with img
 	fillImgWindow(imageHost, streamID, fract_ptr);
@@ -92,7 +96,7 @@ void Fract::fillImgWindow(pixelRegionForStream * imageHost, int2 &streamID, std:
 	}
 }
 
-void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
+void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time, int frameNumber) {
 
 	int x = coordinates.y*WIDTH + coordinates.x;
 
@@ -124,7 +128,7 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 	{
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time);
+		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time, frameNumber);
 
 		// Far plane 
 		if (distanceTraveled > FAR_PLANE)
@@ -133,7 +137,7 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 		if (distanceFromClosestObject.distance < EPSILON)
 		{
 			// Normals
-			computeNormals(iteratedPointPosition, time, normal, rayDirection);
+			computeNormals(iteratedPointPosition, time, normal, rayDirection, frameNumber);
 
 			// halfVector
 			halfVector = (-lightDirection + normal) / length(-lightDirection + normal);
@@ -142,7 +146,7 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 			weightLight = dot(normal, halfVector);
 
 			// Weight of shadow
-			weightShadow = softShadow(iteratedPointPosition, -lightDirection, time);
+			weightShadow = softShadow(iteratedPointPosition, -lightDirection, time, frameNumber);
 
 			hitOk = true;
 
@@ -169,7 +173,7 @@ void Fract::rayMarchingSequential(pixel* img, int2 coordinates, float time) {
 	}
 }
 
-__global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
+__global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk, int frameNumber)
 {
 	// We keep in shared memory a (padded) block of the size of the block.
 	// This way we can accees the value computed by neighbour pixels.
@@ -178,20 +182,22 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 
 	// Counter that keep track of how many pixel in the block are already computed.
 	__shared__ int  globalCounter;
-	globalCounter = 0;
-	__syncthreads();
+	if (USE_MASK) {
+		globalCounter = 0;
+		__syncthreads();
+	}
 
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int x = idy * PIXEL_PER_STREAM_X + idx;
 
-	float u = 5 * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) - 2.5f;
-	float v = 5 * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - 2.5f;
+	float u = (5 /*/ (2 * time)*/) * (((PIXEL_PER_STREAM_X * streamID.x) + idy) / WIDTH) -  (2.5f /*/ (2 * time)*/);
+	float v = (5 /*/ (2 * time)*/) * (((PIXEL_PER_STREAM_Y * streamID.y) + idx) / HEIGHT) - (2.5f /*/ (2 * time)*/);
 
-	float3 point = rightV * u + upV * v;;
+	float3 point = rightV * u + upV * v;
 	float3 rayDirection = normalize(point - rayOrigin);
 
-	float3 lightPosition = rotate(float3{ 1.0f,-3.0f,-1.0f }, upV, 0);
+	float3 lightPosition = rotate(float3{ 0.1f,-3.0f,-1.0f }, upV, 0);
 	float3 lightDirection = normalize(float3{ 0.0f,0.0f,0.0f }-lightPosition);
 	float3 lightColor = normalize(float3{ 66.0f,134.0f,244.0f });
 
@@ -209,22 +215,24 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 	{
 		//If 80% of the pixels in the block hit something, block the computation
 		//Use the mean of neighbour pixel as color
-		int returnFlag;
-		meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
-		if (returnFlag == 2) break;
+		if (USE_MASK) {
+			int returnFlag;
+			meanOptimization(globalCounter, blockResults, sharedId, hitOk, returnFlag);
+			if (returnFlag == 2) break;
+		}
 
 		float3 iteratedPointPosition = rayOrigin + rayDirection * distanceTraveled;
 
-		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time);
+		distanceFromClosestObject = distanceEstimator(iteratedPointPosition, time, frameNumber);
 
 		// Far plane 
 		if (distanceTraveled > FAR_PLANE)
 			break;
 
-		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < EPSILON)
+		if (idx < PIXEL_PER_STREAM_X && idy < PIXEL_PER_STREAM_Y  && distanceFromClosestObject.distance < (EPSILON/* / (2 * time)*/))
 		{
 			// Normals
-			computeNormals(iteratedPointPosition, time, normal, rayDirection);
+			computeNormals(iteratedPointPosition, time, normal, rayDirection, frameNumber);
 
 			// halfVector
 			halfVector = (-lightDirection + normal) / length(-lightDirection + normal);
@@ -233,7 +241,7 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 			weightLight = dot(normal, halfVector);
 
 			// Weight of shadow
-			weightShadow = softShadow(iteratedPointPosition, -lightDirection, time);
+			weightShadow = softShadow(iteratedPointPosition, -lightDirection, time, frameNumber);
 
 			// Save color
 			blockResults[sharedId.x][sharedId.y].x = (weightShadow) * (weightLight)* distanceFromClosestObject.color.x;
@@ -241,7 +249,9 @@ __global__ void rayMarching(pixel* img, float time, int2 streamID, int peakClk)
 			blockResults[sharedId.x][sharedId.y].y = (weightShadow) * (weightLight)* distanceFromClosestObject.color.y;
 
 			// Keep track of how many thread have finished computing
-			atomicAdd(&globalCounter, 1);
+			if (USE_MASK) {
+				atomicAdd(&globalCounter, 1);
+			}
 			hitOk = true;
 
 			break;
@@ -278,18 +288,18 @@ __global__ void childKernel()
 	printf("Sono un figlio.\n");
 }
 
-__host__ __device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection)
+inline __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, float time, float3 &normal, float3 &rayDirection, int frameNumber)
 {
 	float3 xDir{ 0.5773*EPSILON,0.0f,0.0f };
 	float3 yDir{ 0.0f,0.5773*EPSILON,0.0f };
 	float3 zDir{ 0.0f,0.0f,0.5773*EPSILON };
 
-	infoEstimatorResult x1 = distanceEstimator(iteratedPointPosition + xDir, time);
-	infoEstimatorResult x2 = distanceEstimator(iteratedPointPosition - xDir, time);
-	infoEstimatorResult y1 = distanceEstimator(iteratedPointPosition + yDir, time);
-	infoEstimatorResult y2 = distanceEstimator(iteratedPointPosition - yDir, time);
-	infoEstimatorResult z1 = distanceEstimator(iteratedPointPosition + zDir, time);
-	infoEstimatorResult z2 = distanceEstimator(iteratedPointPosition - zDir, time);
+	infoEstimatorResult x1 = distanceEstimator(iteratedPointPosition + xDir, time, frameNumber);
+	infoEstimatorResult x2 = distanceEstimator(iteratedPointPosition - xDir, time, frameNumber);
+	infoEstimatorResult y1 = distanceEstimator(iteratedPointPosition + yDir, time, frameNumber);
+	infoEstimatorResult y2 = distanceEstimator(iteratedPointPosition - yDir, time, frameNumber);
+	infoEstimatorResult z1 = distanceEstimator(iteratedPointPosition + zDir, time, frameNumber);
+	infoEstimatorResult z2 = distanceEstimator(iteratedPointPosition - zDir, time, frameNumber);
 
 	normal = normalize(float3{ x1.distance - x2.distance ,y1.distance - y2.distance,z1.distance - z2.distance });
 
@@ -298,10 +308,10 @@ __host__ __device__ void computeNormals(const float3 &iteratedPointPosition, flo
 		normal = -normal;
 }
 
-__host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[14][14], int2 &sharedId, bool &hitOk, int &retflag)
+inline __host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[BLOCK_DIM_X + 2 * (MASK_SIZE / 2)][BLOCK_DIM_Y + 2 * (MASK_SIZE / 2)], int2 &sharedId, bool &hitOk, int &retflag)
 {
 	retflag = 1;
-	if (globalCounter > 0.8f*BLOCK_DIM_X*BLOCK_DIM_Y)
+	if (globalCounter > MASK_PERCENTAGE * BLOCK_DIM_X * BLOCK_DIM_Y)
 	{
 		float3 meanValue{ 0.0f,0.0f,0.0f };
 		for (int i = -(MASK_SIZE / 2); i <= (MASK_SIZE / 2); i++)
@@ -323,7 +333,7 @@ __host__ __device__ void meanOptimization(int globalCounter, int3  blockResults[
 	}
 }
 
-__host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time)
+inline __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iteratedPointPosition, float time, int frameNumber)
 {
 	float3 modifiedIteratedPosition = iteratedPointPosition;
 	transformationOnPoint(modifiedIteratedPosition, time);
@@ -332,16 +342,19 @@ __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iterated
 	infoEstimatorResult n2 = { 0.0f, float3{ 1, 45, 134 } };
 	infoEstimatorResult n3 = { 0.0f, float3{ 0.0f, 255.0f, 0.0f } };
 
+	/*int iterations =	(frameNumber < ((1 * MAX_NUMBER_OF_FRAMES) / 4)) ? 2 : 3;
+	iterations =		(frameNumber < ((2 * MAX_NUMBER_OF_FRAMES) / 4)) ? iterations : 4;
+	iterations =		(frameNumber < ((3 * MAX_NUMBER_OF_FRAMES) / 4)) ? iterations : 5;*/
+
 	//return distanceFromClosestObject = cornellBoxScene(rotY(iteratedPointPosition, t));
 	//return power = abs(cos(t)) * 40 + 2;
 	//return distanceFromClosestObject = mandelbulbScene(rotY(iteratedPointPosition, t), 1.0f);
-	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f/**abs(sin(time / 2)) + 2.0f*/) * 2.3f;
+	n1.distance = mandelbulb(modifiedIteratedPosition / 2.3f, 8, 8.0f, 8.0f/*7.0f*abs(sin(time / 2)) + 1.0f*/) * 2.3f;
 	n2.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,-2.0f,0.0f }, float3{ 10.0f,0.1f,10.0f });
 	//n3.distance = sdfBox(modifiedIteratedPosition + float3{ 0.0f,0.0f,-2.0f }, float3{ 10.0f,10.0f,0.1f });
 	//float n1 =  mengerBox(rotY(dodecaFold(modifiedIteratedPosition), time), 3); //MOLTO FIGO :DDDDD
-	//n1.distance = mengerBox(modifiedIteratedPosition, 3);
+	//n1.distance = mengerBox(modifiedIteratedPosition, iterations);
 	//return mandelbulb(rotY(dodecaFold(iteratedPointPosition), t) / 2.3f, 8, 4.0f, 1.0f + 9.0f * 1.0f) * 2.3f;
-	//return mengerBox(rotY(iteratedPointPosition, t), 3);
 	//return sdfSphere(iteratedPointPosition , 1.0f);
 	//n3.distance = crossCubeSolid(modifiedIteratedPosition, float3{ 1.0f,1.0f,1.0f });
 	//return shapeUnion(shapeUnion(n1, n2), n3);
@@ -350,36 +363,36 @@ __host__ __device__ infoEstimatorResult distanceEstimator(const float3 &iterated
 
 }
 
-__host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
+inline __host__ __device__ void transformationOnPoint(float3 &modifiedIteratedPosition, float time)
 {
-	//modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
-	//modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
+	modifiedIteratedPosition += float3{ 0.0f,0.0f,-10 * abs(sin(time)) };
+	modifiedIteratedPosition = rotate(modifiedIteratedPosition, rightV, -0.78539* abs(sin(time))); // Rotate 45°
 	modifiedIteratedPosition = rotate(modifiedIteratedPosition, upV, time);
 }
 
-__host__ __device__ float softShadow(float3 origin, float3 direction, float time)
+inline __host__ __device__ float softShadow(float3 origin, float3 direction, float time, int frameNumber)
 {
 	float res = 1.0;
 	float mint = 0.02f;
 	float maxt = 2.5f;
 	for (int i = 0; i < 16; i++)
 	{
-		float h = distanceEstimator(origin + direction * mint, time).distance;
+		float h = distanceEstimator(origin + direction * mint, time, frameNumber).distance;
 		res = min(res, 16.0*h / mint);
 		mint += clamp(h, 0.02, 0.10);
-		if (res<0.005 || mint>maxt) break;
+		if (res<0.005/*(EPSILON/(2*time))*/ || mint>maxt) break;
 	}
 	return clamp(res, 0.0, 1.0);
 }
 
-__host__ __device__ float hardShadow(float3 origin, float3 direction, float time)
+inline __host__ __device__ float hardShadow(float3 origin, float3 direction, float time, int frameNumber)
 {
 	float res = 1.0;
 	float mint = 0.02f;
 	float maxt = 2.5f;
 	for (float t = mint; t < maxt; )
 	{
-		float h = distanceEstimator(origin + direction * t, time).distance;
+		float h = distanceEstimator(origin + direction * t, time, frameNumber).distance;
 		if (h < EPSILON)
 			return 0.0;
 		t += h;
