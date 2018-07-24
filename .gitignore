@@ -13,9 +13,14 @@ x64/
 activity/
 img/
 video/
+benchmarks/
+tool_utili/
 
 # Ignora tutti gli header che vengono da librerie esterne
 header/*/
+
+# Ignora le relazioni di esempio
+relazione/esempio/*
 
 # Ignora i file generati da Visual Studio per il progetto
 GPU_project.sln
@@ -23,3 +28,4 @@ GPU_project.vcxproj
 GPU_project.vcxproj.filters
 GPU_project.vcxproj.user
 vc140.pdb
+GPU_project.vcxproj.stefano pittalis.nvuser

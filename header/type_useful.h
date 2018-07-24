@@ -5,7 +5,7 @@
 #include <cutil_math.h>
 
 // Defines for constant values
-#define PARALLEL				true
+#define PARALLEL				false
 #define WIDTH					512.0
 #define HEIGHT					512.0
 #define MAX_STEPS				128
