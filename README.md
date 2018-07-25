@@ -28,7 +28,7 @@ La tecnica del ray-marching consiste nello sparare, per ogni pixel dell’immagi
 
  
 
-![img](/relazione/assets/pasted image 0.png)
+![img](/relazione/assets/3.png)
 
  
 
